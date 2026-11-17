@@ -557,13 +557,6 @@ export class LabIDEController {
           inputField.setAttribute('spellcheck', 'false');
         }
 
-        // Initialize emmet-codemirror plugin if available
-        if (typeof window.emmetCodeMirror === 'function') {
-          try {
-            window.emmetCodeMirror(cm);
-          } catch (_) {}
-        }
-
         // Contextual autocomplete on <, tag attributes, CSS props, and JS dot/identifiers
         cm.on('inputRead', (instance, changeObj) => {
           if (!changeObj || changeObj.origin !== '+input') return;
@@ -754,8 +747,13 @@ export class LabIDEController {
     const match = before.match(/([^\s<>;"']+)$/);
     if (!match) return false;
 
-    const expanded = expandEmmetExpression(match[1], mode);
+    let expanded = expandEmmetExpression(match[1], mode);
     if (!expanded) return false;
+
+    const indent = (line.match(/^\s*/) || [''])[0];
+    if (indent && expanded.includes('\n')) {
+      expanded = expanded.replace(/\n/g, `\n${indent}`);
+    }
 
     const from = { line: cursor.line, ch: cursor.ch - match[1].length };
     cm.replaceRange(expanded, from, cursor, 'emmet');
@@ -800,9 +798,7 @@ export class LabIDEController {
 
       if (btn.dataset.action === 'emmet') {
         if (cm) {
-          if (!this.tryExpandEmmetInCodeMirror(cm, this.activeTab)) {
-            try { cm.execCommand('emmetExpandAbbreviation'); } catch (_) {}
-          }
+          this.tryExpandEmmetInCodeMirror(cm, this.activeTab);
           cm.focus();
         } else if (ta) {
           this.tryExpandEmmetInTextarea(ta, this.activeTab);

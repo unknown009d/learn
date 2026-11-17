@@ -997,11 +997,11 @@ function renderHomeView() {
         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div class="max-w-2xl">
             <div class="flex flex-wrap items-center gap-2 mb-3">
-              <span class="badge m3-primary-container font-mono font-bold px-3 py-2.5">Vanilla Web Foundations</span>
-              <span class="badge m3-tonal-badge font-medium px-3 py-2.5">Self-Paced Track</span>
+              <span class="badge m3-primary-container font-mono font-bold px-3 py-2.5">Free course</span>
+              <span class="badge m3-tonal-badge font-medium px-3 py-2.5">Self-Paced Learning</span>
             </div>
             <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">
-              Learn to Build for the Web, Step by Step
+              Learn to build for the Web, step by step
             </h1>
             <p class="m3-text-muted mt-2.5 text-sm sm:text-base">
               Start from how websites work and build real pages using HTML, CSS, and JavaScript. Read each short lesson, pass a quick 60% quiz, and complete 8 hands-on coding labs right in your browser—no setup required. Finish all modules to download your verified certificate.
@@ -1944,7 +1944,7 @@ function drawQuizSession(mod, quiz, prevRecord) {
           <div class="flex justify-end gap-3 mt-2">
             <button id="retake-quiz-bottom-btn" type="button" class="btn m3-btn-tonal rounded-full px-6 gap-2">
               <span class="material-symbols-outlined text-[18px]">shuffle</span>
-              Retake Quiz (Shuffled)
+              Retake Quiz
             </button>
           </div>
         `}

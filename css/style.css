@@ -871,11 +871,7 @@ body.is-resizing iframe {
   margin: 0;
   padding: 4px !important;
   list-style: none;
-  background-color: var(--surface-container-highest) !important;
-  color: var(--m3-text) !important;
-  border: 1px solid var(--outline-variant) !important;
   border-radius: 10px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
   font-family: 'JetBrains Mono', monospace !important;
   font-size: 12.5px !important;
   opacity: 1 !important;
@@ -885,7 +881,6 @@ body.is-resizing iframe {
 .CodeMirror-hint {
   padding: 5px 10px !important;
   border-radius: 6px !important;
-  color: var(--m3-text) !important;
   cursor: pointer;
   white-space: pre;
   transition: background-color 150ms ease, color 150ms ease;
@@ -895,9 +890,40 @@ body.is-resizing iframe {
   background-color: var(--m3-state-hover) !important;
 }
 
-li.CodeMirror-hint-active {
-  background-color: var(--m3-primary-container) !important;
-  color: var(--m3-on-primary-container) !important;
+:root .CodeMirror-hints,
+[data-theme="m3-light"] .CodeMirror-hints {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+:root .CodeMirror-hint,
+[data-theme="m3-light"] .CodeMirror-hint {
+  color: #111827 !important;
+}
+
+:root li.CodeMirror-hint-active,
+[data-theme="m3-light"] li.CodeMirror-hint-active {
+  background: #146c43 !important;
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+[data-theme="m3-dark"] .CodeMirror-hints {
+  background: #1e242b !important;
+  color: #f3f4f6 !important;
+  border: 1px solid #374151 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="m3-dark"] .CodeMirror-hint {
+  color: #f3f4f6 !important;
+}
+
+[data-theme="m3-dark"] li.CodeMirror-hint-active {
+  background: #2ea043 !important;
+  color: #ffffff !important;
   font-weight: 600;
 }
 
