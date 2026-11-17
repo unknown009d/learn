@@ -2785,7 +2785,8 @@ async function renderCertificateView() {
     year: 'numeric'
   });
 
-  const qrMinimalPayload = `?v=${qrInfo.token}`;
+  const baseUrl = window.location.origin + window.location.pathname;
+  const qrPayload = `${baseUrl}#/verify?v=${encodeURIComponent(qrInfo.token)}`;
   const safeRoll = (fullState.profile.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
 
   const view = document.getElementById('app-view');
@@ -2889,9 +2890,9 @@ async function renderCertificateView() {
                 <div style="font-size:11px;color:#64748B;line-height:1.3;">Course Author &middot; druba.in</div>
               </div>
 
-              <!-- Center Column: High-Scannability QR Code (104x104) -->
+              <!-- Center Column: High-Scannability QR Code (104x104, 8px white quiet zone) -->
               <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
-                <div style="background:#ffffff;display:inline-flex;align-items:center;justify-content:center;">
+                <div style="background:#ffffff;padding:8px;display:inline-flex;align-items:center;justify-content:center;">
                   <canvas id="cert-qr-canvas" width="104" height="104" style="width:104px;height:104px;display:block;"></canvas>
                   <div id="cert-qr-fallback" class="hidden"></div>
                 </div>
@@ -2937,7 +2938,7 @@ async function renderCertificateView() {
     try {
       new window.QRious({
         element: qrCanvas,
-        value: qrMinimalPayload,
+        value: qrPayload,
         size: 104,
         padding: 0,
         level: 'M',
@@ -3110,10 +3111,46 @@ async function renderCertificateView() {
 // Certificate Checker & Submission Inspector (#/verify)
 // ============================================================================
 
+function extractVerificationToken(rawInput) {
+  const trimmed = String(rawInput || '').trim();
+  if (!trimmed) return { type: 'empty', value: '' };
+
+  const extractFromQuery = (queryStr) => {
+    try {
+      const params = new URLSearchParams(queryStr);
+      const v = params.get('v');
+      if (v) return { type: 'qr', value: v.trim() };
+      const key = params.get('key');
+      if (key) return { type: 'key', value: key.trim() };
+    } catch {}
+    return null;
+  };
+
+  if (trimmed.startsWith('?')) {
+    const hit = extractFromQuery(trimmed.slice(1).split('#')[0]);
+    if (hit) return hit;
+  }
+
+  // Handle full URLs or hash URLs (e.g. https://druba.in/learn/#/verify?v=... or ?v=...#/verify)
+  const qIdx = trimmed.indexOf('?');
+  if (qIdx !== -1) {
+    const afterQ = trimmed.slice(qIdx + 1);
+    const hit = extractFromQuery(afterQ.split('#')[0]) || extractFromQuery(afterQ);
+    if (hit) return hit;
+  }
+
+  if (trimmed.startsWith('druba-web-v1.') || trimmed.startsWith('druba-web-v1r.')) {
+    return { type: 'key', value: trimmed };
+  }
+
+  return { type: 'qr', value: trimmed };
+}
+
 async function renderVerifyView(queryParams = null) {
   const view = document.getElementById('app-view');
-  const qrParam = queryParams ? queryParams.get('v') : null;
-  const keyParam = queryParams ? queryParams.get('key') : null;
+  const searchParams = new URLSearchParams(window.location.search || '');
+  const qrParam = (queryParams && queryParams.get('v')) || searchParams.get('v') || null;
+  const keyParam = (queryParams && queryParams.get('key')) || searchParams.get('key') || null;
 
   view.innerHTML = `
     <section class="flex flex-col gap-5 max-w-5xl mx-auto">
@@ -3226,38 +3263,6 @@ async function renderVerifyView(queryParams = null) {
 
   appState.cleanupRouteView = stopCamera;
 
-  const extractVerificationPayload = (rawText) => {
-    const trimmed = String(rawText || '').trim();
-    if (!trimmed) return { type: 'empty', value: '' };
-
-    // Extract ?v= or ?key= from full URLs, hash URLs, or bare query strings
-    const extractParam = (queryStr) => {
-      try {
-        const params = new URLSearchParams(queryStr);
-        if (params.get('v')) return { type: 'qr', value: params.get('v') };
-        if (params.get('key')) return { type: 'key', value: params.get('key') };
-      } catch {}
-      return null;
-    };
-
-    if (trimmed.startsWith('?')) {
-      const hit = extractParam(trimmed.slice(1));
-      if (hit) return hit;
-    }
-
-    const qIdx = trimmed.indexOf('?');
-    if (qIdx !== -1) {
-      const hit = extractParam(trimmed.slice(qIdx + 1).split('#')[0]);
-      if (hit) return hit;
-    }
-
-    if (trimmed.startsWith('druba-web-v1.') || trimmed.startsWith('druba-web-v1r.')) {
-      return { type: 'key', value: trimmed };
-    }
-
-    return { type: 'qr', value: trimmed };
-  };
-
   const renderQrResult = async (tokenStr) => {
     const qrRes = await verifyCompactQrToken(tokenStr);
     if (qrRes.valid && qrRes.payload) {
@@ -3330,7 +3335,7 @@ async function renderVerifyView(queryParams = null) {
   };
 
   const runInspection = async (rawInput) => {
-    const parsed = extractVerificationPayload(rawInput);
+    const parsed = extractVerificationToken(rawInput);
     if (parsed.type === 'empty') {
       resultsContainer.innerHTML = `
         <div class="rounded-3xl p-5 border-2 border-error m3-error-container flex items-center gap-3">
@@ -3659,11 +3664,13 @@ async function renderVerifyView(queryParams = null) {
   });
 
   if (qrParam) {
-    await renderQrResult(qrParam);
+    const parsed = extractVerificationToken(qrParam);
+    await renderQrResult(parsed.value);
   } else if (keyParam) {
+    const parsed = extractVerificationToken(keyParam);
     const keyInput = document.getElementById('verify-key-input');
-    if (keyInput) keyInput.value = keyParam;
-    await runInspection(keyParam);
+    if (keyInput) keyInput.value = parsed.value;
+    await runInspection(parsed.value);
   }
 }
 
