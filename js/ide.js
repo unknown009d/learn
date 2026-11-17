@@ -284,7 +284,7 @@ function __verifyLabInIframe(__meta) {
           const idName = ((inp.id || '') + (inp.name || '')).toLowerCase();
           if (t === 'email' || idName.includes('email')) inp.value = 'ananya@example.in';
           else if (t === 'password' || idName.includes('pass') || idName.includes('pwd')) inp.value = 'Secret123';
-          else inp.value = 'Ananya Das';
+          else inp.value = 'Drubajyoti Debnath';
         });
         const evt2 = new Event('submit', { bubbles: true, cancelable: true });
         form.dispatchEvent(evt2);
@@ -438,9 +438,14 @@ export class LabIDEController {
     this.initialState = options.initialState || {};
     this.onVerifyComplete = options.onVerifyComplete || (() => {});
     this.onTelemetryUpdate = options.onTelemetryUpdate || (() => {});
+    this.onCodeChange = options.onCodeChange || null;
+    this.customRunner = options.customRunner || null;
+    this.onShortcutRunAdvance = options.onShortcutRunAdvance || null;
+    this.onShortcutSave = options.onShortcutSave || null;
     this.isBonus = Boolean(options.isBonus);
 
-    this.activeTab = 'html';
+    this.activeTab = options.initialTab || 'html';
+    this.changeTimeout = null;
     this.code = {
       html: this.initialState.htmlCode ?? this.lab.starterHtml ?? '',
       css: this.initialState.cssCode ?? this.lab.starterCss ?? '',
@@ -514,6 +519,22 @@ export class LabIDEController {
             'Ctrl-Space': (instance) => {
               this.triggerAutocomplete(instance, spec.key, true);
             },
+            'Ctrl-Enter': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutRunAdvance) this.onShortcutRunAdvance(this);
+            },
+            'Cmd-Enter': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutRunAdvance) this.onShortcutRunAdvance(this);
+            },
+            'Ctrl-S': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutSave) this.onShortcutSave(this);
+            },
+            'Cmd-S': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutSave) this.onShortcutSave(this);
+            },
             Tab: (instance) => {
               if (instance.somethingSelected()) {
                 instance.indentSelection('add');
@@ -578,6 +599,7 @@ export class LabIDEController {
               this.markTyping();
             }
             this.scheduleSave();
+            this.scheduleCodeChange();
           }
         });
 
@@ -593,6 +615,21 @@ export class LabIDEController {
         ta.setAttribute('spellcheck', 'false');
 
         ta.addEventListener('keydown', (e) => {
+          const mod = e.ctrlKey || e.metaKey;
+          if (mod && e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            this.code[spec.key] = ta.value;
+            if (this.onShortcutRunAdvance) this.onShortcutRunAdvance(this);
+            return;
+          }
+          if (mod && (e.key === 's' || e.key === 'S')) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.code[spec.key] = ta.value;
+            if (this.onShortcutSave) this.onShortcutSave(this);
+            return;
+          }
           if (e.key === 'Tab') {
             e.preventDefault();
             if (!this.tryExpandEmmetInTextarea(ta, spec.key)) {
@@ -601,6 +638,7 @@ export class LabIDEController {
             this.code[spec.key] = ta.value;
             this.markTyping();
             this.scheduleSave();
+            this.scheduleCodeChange();
           }
         });
         ta.addEventListener('paste', () => {
@@ -610,6 +648,7 @@ export class LabIDEController {
           this.code[spec.key] = ta.value;
           this.markTyping();
           this.scheduleSave();
+          this.scheduleCodeChange();
         });
 
         spec.el.innerHTML = '';
@@ -846,6 +885,21 @@ export class LabIDEController {
     }, 1000);
   }
 
+  scheduleCodeChange() {
+    if (!this.onCodeChange) return;
+    clearTimeout(this.changeTimeout);
+    this.changeTimeout = setTimeout(() => {
+      this.onCodeChange({ ...this.code });
+    }, 150);
+  }
+
+  setCode(tabKey, value) {
+    this.code[tabKey] = value;
+    if (this.editors[tabKey]) this.editors[tabKey].setValue(value);
+    if (this.fallbacks[tabKey]) this.fallbacks[tabKey].value = value;
+    this.runPreviewOnly();
+  }
+
   scheduleSave() {
     clearTimeout(this.saveTimeout);
     this.saveTimeout = setTimeout(() => this.persistDraft(), 600);
@@ -874,9 +928,14 @@ export class LabIDEController {
     }
     this.persistDraft();
     this.runPreviewOnly();
+    if (this.onCodeChange) this.onCodeChange({ ...this.code });
   }
 
   runPreviewOnly() {
+    if (this.customRunner) {
+      this.customRunner({ ...this.code }, this.containers);
+      return;
+    }
     if (!this.containers.iframe) return;
     if (this.containers.consoleEl) this.containers.consoleEl.innerHTML = '';
     if (this.containers.consoleCountEl) this.containers.consoleCountEl.textContent = '0';
@@ -971,6 +1030,7 @@ export class LabIDEController {
   destroy() {
     clearInterval(this.typingInterval);
     clearTimeout(this.saveTimeout);
+    clearTimeout(this.changeTimeout);
     clearTimeout(this.verifyTimeout);
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);

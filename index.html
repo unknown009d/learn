@@ -117,7 +117,7 @@
   </div>
 
   <!-- Top Material Design 3 Navigation Bar (56px) -->
-  <header class="m3-topbar navbar sticky top-0 z-40 h-14 min-h-[56px] px-2.5 sm:px-3.5 gap-1.5 sm:gap-2 justify-between overflow-hidden no-print">
+  <header class="m3-topbar navbar sticky top-0 z-40 h-14 min-h-[56px] px-2.5 sm:px-3.5 gap-2 justify-between overflow-visible no-print">
     <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-hidden">
       <!-- Mobile Drawer Trigger -->
       <button id="drawer-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle lg:hidden shrink-0" aria-label="Open Navigation Menu">
@@ -130,52 +130,77 @@
       </button>
 
       <div class="flex items-center gap-2 min-w-0 overflow-hidden">
-        <a href="#/" class="m3-logo-badge flex items-center justify-center w-9 h-9 rounded-xl shrink-0" aria-label="Home">
-          <span class="material-symbols-outlined icon-20">terminal</span>
+        <a href="#/" class="font-bold text-sm sm:text-base tracking-tight truncate leading-tight hover:opacity-90">
+          Vanilla Web Foundations
         </a>
-        <div class="min-w-0 overflow-hidden">
-          <a href="#/" class="block font-bold text-sm sm:text-base tracking-tight truncate leading-tight hover:opacity-90">
-            Vanilla Web Foundations
+        <span class="text-xs m3-text-muted truncate hidden sm:inline">
+          by <a href="https://druba.in" target="_blank" rel="noopener noreferrer" class="hover:underline font-medium">druba.in</a>
+        </span>
+      </div>
+    </div>
+
+    <!-- Compact Mastery Pill + Desktop Actions + Mobile Menu -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <div class="hidden sm:flex items-center gap-1.5 m3-surface-container px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0" title="Overall Course Progress">
+        <span class="material-symbols-outlined m3-text-primary" style="font-size:15px">workspace_premium</span>
+        <span id="nav-progress-label" class="font-mono font-semibold">0/13 &middot; 0%</span>
+      </div>
+
+      <!-- Desktop Horizontal Actions (>= 1024px) -->
+      <div class="hidden lg:flex items-center gap-1 shrink-0">
+        <button id="open-backup-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap js-open-backup" title="Save or Load Progress">
+          <span class="material-symbols-outlined icon-18">cloud_sync</span>
+          <span>Save / Load</span>
+        </button>
+
+        <a href="#/manual" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap" title="Printable Lab Manual">
+          <span class="material-symbols-outlined icon-18">menu_book</span>
+          <span>Lab Manual</span>
+        </a>
+
+        <a href="#/verify" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap" title="Verify Certificate">
+          <span class="material-symbols-outlined icon-18">verified_user</span>
+          <span>Verify Certificate</span>
+        </a>
+
+        <button id="theme-toggle-btn" type="button" class="btn btn-sm btn-circle m3-surface-container-high border m3-border-subtle shrink-0 js-theme-toggle" aria-label="Toggle Theme" title="Switch Light / Dark Mode">
+          <span id="theme-toggle-icon" class="material-symbols-outlined icon-18">dark_mode</span>
+        </button>
+      </div>
+
+      <!-- Mobile / Tablet Compact Menu (< 1024px) -->
+      <div id="nav-settings-dropdown" class="relative lg:hidden">
+        <button id="nav-settings-btn" type="button" class="btn btn-sm btn-ghost btn-circle shrink-0" aria-label="Workspace Menu" aria-expanded="false" aria-haspopup="menu" title="Menu">
+          <span class="material-symbols-outlined icon-20">more_vert</span>
+        </button>
+
+        <div id="nav-settings-menu" role="menu" class="dropdown-content hidden absolute right-0 top-full mt-2 w-56 p-1.5 rounded-2xl border m3-border-subtle flex flex-col gap-0.5 text-sm">
+          <button type="button" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-backup">
+            <span class="material-symbols-outlined icon-18 m3-text-primary">cloud_sync</span>
+            <span>Save / Load Progress</span>
+          </button>
+          <a href="#/manual" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl">
+            <span class="material-symbols-outlined icon-18 m3-text-primary">menu_book</span>
+            <span>Lab Manual</span>
           </a>
-          <p class="text-[11px] m3-text-muted truncate hidden sm:block leading-tight">
-            by <a href="https://druba.in" target="_blank" rel="noopener noreferrer" class="hover:underline font-medium">druba.in</a>
-          </p>
+          <a href="#/verify" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl">
+            <span class="material-symbols-outlined icon-18 m3-text-primary">verified_user</span>
+            <span>Verify Certificate</span>
+          </a>
+          <button type="button" role="menuitem" class="m3-menu-item flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-shortcuts">
+            <span class="flex items-center gap-2.5">
+              <span class="material-symbols-outlined icon-18 m3-text-primary">keyboard</span>
+              <span>Keyboard Shortcuts</span>
+            </span>
+            <kbd class="m3-kbd">?</kbd>
+          </button>
+          <div class="my-1 border-t m3-border-subtle"></div>
+          <button type="button" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-theme-toggle">
+            <span class="material-symbols-outlined icon-18 m3-text-primary js-theme-toggle-icon">dark_mode</span>
+            <span id="theme-toggle-label">Dark Mode</span>
+          </button>
         </div>
       </div>
-    </div>
-
-    <!-- Mastery Progress Pill -->
-    <div class="hidden xl:flex items-center gap-2 m3-surface-container px-3 py-1 rounded-full border m3-border-subtle shrink-0">
-      <span class="material-symbols-outlined icon-18 m3-text-primary">workspace_premium</span>
-      <div class="flex flex-col w-36">
-        <div class="flex justify-between items-center gap-2 whitespace-nowrap text-[11px] font-semibold leading-tight mb-0.5">
-          <span>Mastery</span>
-          <span id="nav-progress-label" class="font-mono">0%</span>
-        </div>
-        <progress id="nav-progress-bar" class="progress progress-primary h-1.5 w-full" value="0" max="100"></progress>
-      </div>
-    </div>
-
-    <!-- Utility Actions -->
-    <div class="flex items-center gap-1 shrink-0">
-      <button id="open-backup-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5 px-2.5 shrink-0 whitespace-nowrap" title="Save or Load Progress">
-        <span class="material-symbols-outlined icon-18">cloud_sync</span>
-        <span class="hidden md:inline">Save / Load</span>
-      </button>
-
-      <a href="#/manual" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-2.5 shrink-0 whitespace-nowrap" title="Printable Lab Manual">
-        <span class="material-symbols-outlined icon-18">menu_book</span>
-        <span class="hidden sm:inline">Lab Manual</span>
-      </a>
-
-      <a href="#/verify" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-2.5 shrink-0 whitespace-nowrap" title="Check a Certificate">
-        <span class="material-symbols-outlined icon-18">verified_user</span>
-        <span class="hidden sm:inline">Check Certificate</span>
-      </a>
-
-      <button id="theme-toggle-btn" type="button" class="btn btn-sm btn-circle m3-surface-container-high border m3-border-subtle shrink-0" aria-label="Toggle Theme" title="Switch Light / Dark Theme">
-        <span id="theme-toggle-icon" class="material-symbols-outlined icon-18">dark_mode</span>
-      </button>
     </div>
   </header>
 
@@ -210,6 +235,11 @@
           <span class="font-medium truncate rail-expanded-only">Bootstrap Sandbox</span>
           <span class="badge badge-xs m3-tonal-badge ml-auto rail-expanded-only">Optional</span>
         </a>
+        <button id="drawer-shortcuts-btn" type="button" class="m3-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl rail-link text-left w-full js-open-shortcuts" title="Keyboard Shortcuts (?)">
+          <span class="material-symbols-outlined icon-20 shrink-0">keyboard</span>
+          <span class="font-medium truncate rail-expanded-only">Shortcuts</span>
+          <kbd class="m3-kbd ml-auto rail-expanded-only">?</kbd>
+        </button>
         <div class="px-2.5 pt-1 text-[11px] opacity-75 rail-expanded-only">
           Vanilla Web Foundations
         </div>
@@ -270,13 +300,126 @@
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
 
-  <!-- Backup & Restore Modal -->
-  <dialog id="backup-modal" class="modal">
-    <div class="modal-box m3-modal-box rounded-3xl max-w-2xl p-6">
-      <div class="flex items-center justify-between pb-3 border-b m3-border-subtle">
-        <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined icon-24 m3-text-primary">cloud_sync</span>
-          <h3 class="font-bold text-lg">Save or Load Your Progress</h3>
+  <!-- Backup & Restore Modal (Single-Column M3 Tabbed Dialog) -->
+  <dialog id="backup-modal" class="modal" aria-labelledby="backup-modal-title">
+    <div class="modal-box m3-modal-box bk-dialog w-[calc(100vw-2rem)] max-w-[480px] rounded-[28px] p-0">
+      <!-- Header -->
+      <div class="bk-header">
+        <h3 id="backup-modal-title" class="bk-title">Save or Load Progress</h3>
+        <form method="dialog">
+          <button class="btn btn-sm btn-ghost btn-circle" aria-label="Close">
+            <span class="material-symbols-outlined icon-20">close</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- M3 Segmented Tab Bar -->
+      <div class="bk-tabs" role="tablist" aria-label="Save or load progress">
+        <button type="button" id="bk-tab-load" class="bk-tab" role="tab" data-bk-tab="load" aria-controls="bk-panel-load" aria-selected="true">
+          <span class="material-symbols-outlined bk-tab-check icon-18">check</span>
+          <span>Load Progress</span>
+        </button>
+        <button type="button" id="bk-tab-save" class="bk-tab" role="tab" data-bk-tab="save" aria-controls="bk-panel-save" aria-selected="false" tabindex="-1">
+          <span class="material-symbols-outlined bk-tab-check icon-18">check</span>
+          <span>Save Backup</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: Load Progress -->
+      <section id="bk-panel-load" class="bk-panel" role="tabpanel" aria-labelledby="bk-tab-load">
+        <div class="bk-body">
+          <input id="modal-restore-file" type="file" accept=".json,application/json" class="hidden" tabindex="-1" aria-hidden="true">
+
+          <div id="bk-dropzone" class="bk-dropzone" role="button" tabindex="0" aria-label="Upload a saved progress file. Drag and drop or press Enter to browse." aria-describedby="bk-meta-row">
+            <!-- Empty State -->
+            <div class="bk-dz-empty">
+              <span class="material-symbols-outlined bk-dz-icon">cloud_upload</span>
+              <p class="bk-dz-prompt">Drag &amp; Drop your file or <span class="bk-link">Browse</span></p>
+            </div>
+            <!-- File-Selected State -->
+            <div class="bk-dz-selected">
+              <div class="bk-dz-file">
+                <span class="material-symbols-outlined filled bk-dz-ok">check_circle</span>
+                <span id="bk-file-name" class="bk-dz-filename"></span>
+              </div>
+              <span id="bk-file-summary" class="bk-pill"></span>
+              <button type="button" id="bk-file-reset" class="bk-link bk-link-sm">Choose a different file</button>
+            </div>
+            <!-- Error State -->
+            <div class="bk-dz-error">
+              <span class="material-symbols-outlined bk-dz-err-icon">error</span>
+              <p id="bk-file-error" class="bk-dz-err-text"></p>
+              <span class="bk-link bk-link-sm">Try another file</span>
+            </div>
+          </div>
+
+          <div id="bk-meta-row" class="bk-meta-row">
+            <span>Supported format: .json</span>
+            <span>Maximum size: 2MB</span>
+          </div>
+
+          <!-- Collapsible Backup Text Disclosure -->
+          <div class="bk-accordion">
+            <button type="button" id="bk-paste-toggle" class="bk-accordion-toggle" aria-expanded="false" aria-controls="bk-paste-region">
+              <span class="material-symbols-outlined icon-18 bk-chevron">chevron_right</span>
+              <span>Or paste backup text</span>
+            </button>
+            <div id="bk-paste-region" class="bk-accordion-region" hidden>
+              <textarea id="modal-restore-token" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste your backup text here" class="textarea textarea-bordered w-full font-mono text-xs leading-snug rounded-xl"></textarea>
+              <p id="bk-paste-status" class="bk-paste-status" aria-live="polite"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bk-footer bk-footer-end">
+          <button id="modal-restore-btn" type="button" class="btn btn-primary rounded-full px-6 gap-1.5 bk-import-btn" disabled>
+            <span class="material-symbols-outlined icon-18">upload</span>
+            Import
+          </button>
+        </div>
+      </section>
+
+      <!-- Tab 2: Save Backup -->
+      <section id="bk-panel-save" class="bk-panel" role="tabpanel" aria-labelledby="bk-tab-save" hidden>
+        <div class="bk-body">
+          <div class="bk-save-summary">
+            <span class="material-symbols-outlined icon-20 m3-text-primary">account_circle</span>
+            <span id="bk-save-summary" class="truncate">No saved progress yet</span>
+          </div>
+          <button id="modal-export-json-btn" type="button" class="btn btn-primary rounded-full gap-2 w-full">
+            <span class="material-symbols-outlined icon-20">download</span>
+            Download Progress File (.json)
+          </button>
+          <button id="modal-copy-token-btn" type="button" class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined">
+            <span class="material-symbols-outlined icon-20 bk-copy-icon">content_copy</span>
+            <span class="bk-copy-label">Copy Backup Text</span>
+          </button>
+          <p class="bk-hint">Your progress is saved automatically in this browser. Keep a backup to continue on another device.</p>
+        </div>
+
+        <div class="bk-footer bk-footer-start">
+          <button id="modal-reset-progress-btn" type="button" class="bk-danger-link">
+            <span class="material-symbols-outlined icon-18">restart_alt</span>
+            <span class="bk-reset-label">Reset Progress</span>
+          </button>
+        </div>
+      </section>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Keyboard Shortcuts Cheatsheet Modal -->
+  <dialog id="shortcuts-modal" class="modal">
+    <div class="modal-box m3-modal-box rounded-3xl max-w-xl p-6">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl m3-primary-container flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined">keyboard</span>
+          </div>
+          <div>
+            <h3 class="font-bold text-lg">Keyboard Shortcuts</h3>
+            <p class="text-xs m3-text-muted">Navigate lessons, run code, and verify labs without leaving the keyboard.</p>
+          </div>
         </div>
         <form method="dialog">
           <button class="btn btn-sm btn-ghost btn-circle" aria-label="Close">
@@ -285,51 +428,66 @@
         </form>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div class="m3-surface-container rounded-2xl p-4 border m3-border-subtle flex flex-col gap-3">
-          <div class="flex items-center gap-2 font-semibold text-sm">
-            <span class="material-symbols-outlined icon-18 m3-text-primary">upload_file</span>
-            Save a Copy of Your Progress
-          </div>
-          <p class="text-xs m3-text-muted">
-            Download a saved progress file (.json) or copy your backup text so you can pick up where you left off on another computer or phone.
-          </p>
-          <button id="modal-export-json-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5 w-full">
-            <span class="material-symbols-outlined icon-18">download</span>
-            Download Progress File (.json)
-          </button>
-          <button id="modal-copy-token-btn" type="button" class="btn btn-sm btn-primary rounded-full gap-1.5 w-full">
-            <span class="material-symbols-outlined icon-18">content_copy</span>
-            Copy Backup Text
-          </button>
-        </div>
-
-        <div class="m3-surface-container rounded-2xl p-4 border m3-border-subtle flex flex-col gap-3">
-          <div class="flex items-center gap-2 font-semibold text-sm">
-            <span class="material-symbols-outlined icon-18 m3-text-primary">settings_backup_restore</span>
-            Continue from Another Device
-          </div>
-          <label class="text-xs m3-text-muted">
-            Saved Progress File (.json):
-            <input id="modal-restore-file" type="file" accept=".json,application/json" class="file-input file-input-bordered file-input-xs w-full mt-1.5 rounded-full">
-          </label>
-          <div class="text-xs m3-text-muted">
-            Or paste your backup text:
-            <textarea id="modal-restore-token" rows="2" placeholder="Paste your backup text here" class="textarea textarea-bordered textarea-xs w-full mt-1 font-mono rounded-xl"></textarea>
-          </div>
-          <button id="modal-restore-btn" type="button" class="btn btn-sm btn-secondary rounded-full gap-1.5 w-full">
-            <span class="material-symbols-outlined icon-18">restore</span>
-            Load Saved Progress
-          </button>
-        </div>
+      <div class="mt-4 rounded-2xl border m3-border-subtle overflow-hidden">
+        <table class="table table-sm w-full m3-shortcuts-table">
+          <thead>
+            <tr class="m3-surface-container-low text-xs">
+              <th class="w-44">Shortcut</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody class="text-xs sm:text-sm">
+            <tr>
+              <td class="whitespace-nowrap">
+                <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">Enter</kbd>
+                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Cmd</kbd> + <kbd class="m3-kbd">Enter</kbd></div>
+              </td>
+              <td>Run code &amp; advance to the next step (works inside CodeMirror, checks labs, completes lessons, or submits quizzes).</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap">
+                <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">S</kbd>
+                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Cmd</kbd> + <kbd class="m3-kbd">S</kbd></div>
+              </td>
+              <td>Save your current draft and refresh the live preview (without opening browser Save).</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap">
+                <kbd class="m3-kbd">Alt</kbd> + <kbd class="m3-kbd">&rarr;</kbd>
+                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">&rarr;</kbd>*</div>
+              </td>
+              <td>Move forward to the next unlocked lesson, quiz, or practical lab.</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap">
+                <kbd class="m3-kbd">Alt</kbd> + <kbd class="m3-kbd">&larr;</kbd>
+                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">&larr;</kbd>*</div>
+              </td>
+              <td>Return to the previous lesson, quiz, or practical lab.</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap"><kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">Space</kbd></td>
+              <td>Open autocomplete suggestions inside the code editor.</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap"><kbd class="m3-kbd">Tab</kbd></td>
+              <td>Indent selection or expand an Emmet abbreviation inside the editor.</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap"><kbd class="m3-kbd">?</kbd></td>
+              <td>Open this Keyboard Shortcuts cheatsheet (outside editors &amp; inputs).</td>
+            </tr>
+            <tr>
+              <td class="whitespace-nowrap"><kbd class="m3-kbd">Esc</kbd></td>
+              <td>Close open modals, popovers, or menus.</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div class="mt-4 pt-3 border-t m3-border-subtle flex items-center justify-between text-xs m3-text-muted">
-        <span>Your progress is saved automatically in your browser.</span>
-        <button id="modal-reset-progress-btn" type="button" class="btn btn-xs btn-ghost text-error rounded-full">
-          Reset Saved Progress
-        </button>
-      </div>
+      <p class="mt-3 text-[11px] m3-text-muted">
+        * <span class="font-mono">Ctrl + &larr;/&rarr;</span> navigates steps when focus is outside editors and text fields so cursor word-jump still works inside code.
+      </p>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>

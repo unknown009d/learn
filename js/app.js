@@ -11,6 +11,8 @@ import {
   saveQuizAttempt,
   getPractical,
   getAllPracticals,
+  getAllLessonProgress,
+  markLessonCompleted,
   exportFullState,
   importFullState,
   clearAllData
@@ -19,6 +21,7 @@ import { MODULES, BONUS_MODULE, getModuleById } from './course-data.js';
 import { getQuizByModule } from './quiz-data.js';
 import { LABS, getLabById, getLabsByModule } from './labs-data.js';
 import { LabIDEController, composeSrcDoc } from './ide.js';
+import { renderLessonWidgetHtml, hydrateLessonWidget, runJsInSandbox } from './lesson-widgets.js';
 import {
   generateCompletionKey,
   verifyCompletionKey,
@@ -37,9 +40,11 @@ const appState = {
   profile: null,
   quizzes: new Map(),
   practicals: new Map(),
+  lessons: new Set(),
   activeIDE: null,
   cleanupSplitResizers: null,
-  quizSession: null // holds shuffled quiz state during active attempt
+  quizSession: null, // holds shuffled quiz state during active attempt
+  shortcutContext: null // { onRunAdvance?: Function, onSave?: Function }
 };
 
 // ============================================================================
@@ -130,14 +135,20 @@ function shuffleArray(arr) {
 // ============================================================================
 
 async function refreshStateFromDB() {
-  const [profile, quizzes, practicals] = await Promise.all([
+  const [profile, quizzes, practicals, lessons] = await Promise.all([
     getProfile(),
     getAllQuizzes(),
-    getAllPracticals()
+    getAllPracticals(),
+    getAllLessonProgress()
   ]);
   appState.profile = profile;
   appState.quizzes = new Map(quizzes.map((q) => [Number(q.moduleId), q]));
   appState.practicals = new Map(practicals.map((p) => [Number(p.labId), p]));
+  appState.lessons = new Set((lessons || []).filter((l) => l.completed).map((l) => l.lessonKey));
+}
+
+function isLessonCompleted(moduleId, lessonId) {
+  return appState.lessons.has(`${Number(moduleId)}:${lessonId}`);
 }
 
 function isRegistered() {
@@ -264,6 +275,13 @@ function applyTheme(theme) {
   if (icon) {
     icon.textContent = normalized === 'm3-dark' ? 'light_mode' : 'dark_mode';
   }
+  document.querySelectorAll('.js-theme-toggle-icon').forEach((el) => {
+    el.textContent = normalized === 'm3-dark' ? 'light_mode' : 'dark_mode';
+  });
+  const label = document.getElementById('theme-toggle-label');
+  if (label) {
+    label.textContent = normalized === 'm3-dark' ? 'Light Mode' : 'Dark Mode';
+  }
   if (appState.activeIDE) {
     appState.activeIDE.syncTheme();
   }
@@ -314,63 +332,427 @@ async function triggerCheckpointModal(title, _description, moduleCode = 'M1') {
 }
 
 function bindGlobalModals() {
-  const backupModal = document.getElementById('backup-modal');
-  const openBtn = document.getElementById('open-backup-btn');
-  if (openBtn && backupModal) {
-    openBtn.addEventListener('click', () => {
-      if (typeof backupModal.showModal === 'function') backupModal.showModal();
+  const settingsBtn = document.getElementById('nav-settings-btn');
+  const settingsMenu = document.getElementById('nav-settings-menu');
+  const closeSettingsMenu = () => {
+    settingsMenu?.classList.add('hidden');
+    settingsBtn?.setAttribute('aria-expanded', 'false');
+  };
+  if (settingsBtn && settingsMenu) {
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const willOpen = settingsMenu.classList.contains('hidden');
+      settingsMenu.classList.toggle('hidden', !willOpen);
+      settingsBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+    settingsMenu.addEventListener('click', () => {
+      closeSettingsMenu();
+    });
+    document.addEventListener('click', (e) => {
+      if (!settingsMenu.classList.contains('hidden') && !e.target.closest('#nav-settings-dropdown')) {
+        closeSettingsMenu();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSettingsMenu();
     });
   }
 
-  document.getElementById('modal-export-json-btn')?.addEventListener('click', async () => {
-    const state = await exportFullState();
-    const safeRoll = (state.profile?.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
-    downloadFile(`${safeRoll}_druba-web_checkpoint.json`, JSON.stringify(state, null, 2));
-    showToast('Saved progress file downloaded!', 'success');
+  bindBackupModal();
+  document.querySelectorAll('.js-open-backup').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      closeSettingsMenu();
+      closeMobileDrawer();
+      openBackupModal();
+    });
   });
 
-  document.getElementById('modal-copy-token-btn')?.addEventListener('click', async () => {
-    const state = await exportFullState();
-    const token = await encodeBackupToken(state);
-    await copyToClipboard(token, 'Backup text copied!');
-  });
+  const shortcutsModal = document.getElementById('shortcuts-modal');
+  if (shortcutsModal) {
+    document.querySelectorAll('.js-open-shortcuts').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        closeSettingsMenu();
+        closeMobileDrawer();
+        if (typeof shortcutsModal.showModal === 'function') shortcutsModal.showModal();
+      });
+    });
+  }
+}
 
-  document.getElementById('modal-restore-file')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+// ----------------------------------------------------------------------------
+// Save or Load Progress — Single-Column Tabbed Dialog Controller
+// ----------------------------------------------------------------------------
+
+const BACKUP_MAX_BYTES = 2 * 1024 * 1024;
+
+const backupUi = {
+  bound: false,
+  fileState: null, // parsed state from dropped / selected file
+  textState: null, // parsed state from pasted backup text
+  activeSource: null, // 'file' | 'text'
+  textValidationSeq: 0,
+  copyTimer: null,
+  resetTimer: null,
+  resetArmed: false
+};
+
+function summarizeBackupState(state) {
+  const totalSteps = 5 + LABS.length;
+  const passedQuizzes = new Set(
+    (Array.isArray(state?.quizzes) ? state.quizzes : [])
+      .filter((q) => q && q.passed && Number(q.moduleId) >= 1 && Number(q.moduleId) <= 5)
+      .map((q) => Number(q.moduleId))
+  );
+  const labIds = new Set(LABS.map((l) => Number(l.id)));
+  const doneLabs = new Set(
+    (Array.isArray(state?.practicals) ? state.practicals : [])
+      .filter((p) => p && p.completed && labIds.has(Number(p.labId)))
+      .map((p) => Number(p.labId))
+  );
+  const done = Math.min(totalSteps, passedQuizzes.size + doneLabs.size);
+  return `${state?.profile?.fullName || 'Student'} · ${done}/${totalSteps} Steps Completed`;
+}
+
+function assertValidBackupState(state) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    throw new Error('This file does not contain saved progress.');
+  }
+  if (!state.profile || !state.profile.fullName || !state.profile.rollNo) {
+    throw new Error('This backup is missing the student name or ID.');
+  }
+  return state;
+}
+
+function setBackupTab(tab) {
+  const modal = document.getElementById('backup-modal');
+  if (!modal) return;
+  modal.querySelectorAll('.bk-tab').forEach((btn) => {
+    const selected = btn.dataset.bkTab === tab;
+    btn.setAttribute('aria-selected', selected ? 'true' : 'false');
+    btn.tabIndex = selected ? 0 : -1;
+  });
+  document.getElementById('bk-panel-load').hidden = tab !== 'load';
+  document.getElementById('bk-panel-save').hidden = tab !== 'save';
+}
+
+function updateBackupImportButton() {
+  const btn = document.getElementById('modal-restore-btn');
+  if (!btn) return;
+  const ready =
+    (backupUi.activeSource === 'file' && backupUi.fileState) ||
+    (backupUi.activeSource === 'text' && backupUi.textState);
+  btn.disabled = !ready;
+}
+
+function resetBackupDropzone() {
+  backupUi.fileState = null;
+  if (backupUi.activeSource === 'file') {
+    backupUi.activeSource = backupUi.textState ? 'text' : null;
+  }
+  const zone = document.getElementById('bk-dropzone');
+  zone?.classList.remove('has-file', 'has-error', 'is-dragover');
+  const input = document.getElementById('modal-restore-file');
+  if (input) input.value = '';
+  updateBackupImportButton();
+}
+
+function showBackupDropzoneError(message) {
+  backupUi.fileState = null;
+  if (backupUi.activeSource === 'file') backupUi.activeSource = backupUi.textState ? 'text' : null;
+  const zone = document.getElementById('bk-dropzone');
+  zone?.classList.remove('has-file', 'is-dragover');
+  zone?.classList.add('has-error');
+  document.getElementById('bk-file-error').textContent = message;
+  updateBackupImportButton();
+}
+
+async function handleBackupFile(file) {
+  if (!file) return;
+  const nameOk = /\.json$/i.test(file.name) || file.type === 'application/json';
+  if (!nameOk) {
+    showBackupDropzoneError('Please choose a .json progress file.');
+    return;
+  }
+  if (file.size > BACKUP_MAX_BYTES) {
+    showBackupDropzoneError(`File is too large (${(file.size / 1048576).toFixed(1)}MB). Maximum size is 2MB.`);
+    return;
+  }
+  try {
+    const text = await file.text();
+    let parsed;
     try {
-      const text = await file.text();
-      document.getElementById('modal-restore-token').value = text;
-      showToast('Saved progress file loaded. Click "Load Saved Progress" to continue.', 'info');
-    } catch (err) {
-      showToast('Could not read file: ' + err.message, 'error');
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error('This file is not valid JSON.');
+    }
+    assertValidBackupState(parsed);
+    backupUi.fileState = parsed;
+    backupUi.activeSource = 'file';
+    const zone = document.getElementById('bk-dropzone');
+    zone.classList.remove('has-error', 'is-dragover');
+    zone.classList.add('has-file');
+    document.getElementById('bk-file-name').textContent = file.name;
+    document.getElementById('bk-file-name').title = file.name;
+    document.getElementById('bk-file-summary').textContent = summarizeBackupState(parsed);
+    updateBackupImportButton();
+  } catch (err) {
+    showBackupDropzoneError(err.message || 'Could not read this file.');
+  }
+}
+
+async function validateBackupText() {
+  const ta = document.getElementById('modal-restore-token');
+  const status = document.getElementById('bk-paste-status');
+  const raw = ta?.value.trim() || '';
+  const seq = ++backupUi.textValidationSeq;
+  status.classList.remove('is-valid', 'is-invalid');
+
+  if (!raw) {
+    backupUi.textState = null;
+    status.textContent = '';
+    if (backupUi.activeSource === 'text') backupUi.activeSource = backupUi.fileState ? 'file' : null;
+    updateBackupImportButton();
+    return;
+  }
+
+  try {
+    const parsed = assertValidBackupState(await decodeBackupToken(raw));
+    if (seq !== backupUi.textValidationSeq) return;
+    backupUi.textState = parsed;
+    backupUi.activeSource = 'text';
+    status.textContent = `✓ ${summarizeBackupState(parsed)}`;
+    status.classList.add('is-valid');
+  } catch (err) {
+    if (seq !== backupUi.textValidationSeq) return;
+    backupUi.textState = null;
+    if (backupUi.activeSource === 'text') backupUi.activeSource = backupUi.fileState ? 'file' : null;
+    status.textContent = 'Backup text not recognized. Paste the full text exactly as copied.';
+    status.classList.add('is-invalid');
+  }
+  updateBackupImportButton();
+}
+
+function setPasteAccordion(open) {
+  const toggle = document.getElementById('bk-paste-toggle');
+  const region = document.getElementById('bk-paste-region');
+  if (!toggle || !region) return;
+  toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  region.hidden = !open;
+  if (open) setTimeout(() => document.getElementById('modal-restore-token')?.focus(), 0);
+}
+
+function disarmBackupReset() {
+  backupUi.resetArmed = false;
+  clearTimeout(backupUi.resetTimer);
+  const btn = document.getElementById('modal-reset-progress-btn');
+  if (!btn) return;
+  btn.classList.remove('is-confirming');
+  btn.querySelector('.bk-reset-label').textContent = 'Reset Progress';
+}
+
+function resetCopyButton() {
+  clearTimeout(backupUi.copyTimer);
+  const btn = document.getElementById('modal-copy-token-btn');
+  if (!btn) return;
+  btn.classList.remove('is-copied');
+  btn.querySelector('.bk-copy-icon').textContent = 'content_copy';
+  btn.querySelector('.bk-copy-label').textContent = 'Copy Backup Text';
+}
+
+function resetBackupModalState() {
+  backupUi.textState = null;
+  backupUi.activeSource = null;
+  resetBackupDropzone();
+  const ta = document.getElementById('modal-restore-token');
+  if (ta) ta.value = '';
+  const status = document.getElementById('bk-paste-status');
+  if (status) {
+    status.textContent = '';
+    status.classList.remove('is-valid', 'is-invalid');
+  }
+  setPasteAccordion(false);
+  disarmBackupReset();
+  resetCopyButton();
+  updateBackupImportButton();
+}
+
+function refreshBackupSaveSummary() {
+  const el = document.getElementById('bk-save-summary');
+  if (!el) return;
+  if (!isRegistered()) {
+    el.textContent = 'No saved progress yet';
+    return;
+  }
+  const prog = computeOverallProgress();
+  el.textContent = `${appState.profile.fullName} · ${prog.done}/${prog.totalSteps} Steps Completed`;
+}
+
+function openBackupModal(tab) {
+  const modal = document.getElementById('backup-modal');
+  if (!modal) return;
+  resetBackupModalState();
+  refreshBackupSaveSummary();
+  setBackupTab(tab || (isRegistered() ? 'save' : 'load'));
+  if (typeof modal.showModal === 'function' && !modal.open) modal.showModal();
+}
+
+function bindBackupModal() {
+  const modal = document.getElementById('backup-modal');
+  if (!modal || backupUi.bound) return;
+  backupUi.bound = true;
+
+  // Tabs (click + arrow-key roving focus)
+  const tabs = Array.from(modal.querySelectorAll('.bk-tab'));
+  tabs.forEach((btn, idx) => {
+    btn.addEventListener('click', () => setBackupTab(btn.dataset.bkTab));
+    btn.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      const next = tabs[(idx + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+      setBackupTab(next.dataset.bkTab);
+      next.focus();
+    });
+  });
+
+  // Dropzone
+  const zone = document.getElementById('bk-dropzone');
+  const input = document.getElementById('modal-restore-file');
+  const openPicker = () => input?.click();
+
+  zone.addEventListener('click', (e) => {
+    if (zone.classList.contains('has-file')) return;
+    if (e.target.closest('#bk-file-reset')) return;
+    openPicker();
+  });
+  zone.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target === zone) {
+      e.preventDefault();
+      openPicker();
     }
   });
+  document.getElementById('bk-file-reset')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetBackupDropzone();
+    zone.focus();
+  });
+  input?.addEventListener('change', () => {
+    const file = input.files?.[0];
+    if (file) handleBackupFile(file);
+    input.value = '';
+  });
 
-  document.getElementById('modal-restore-btn')?.addEventListener('click', async () => {
-    const raw = document.getElementById('modal-restore-token')?.value || '';
+  const hasFiles = (e) => Array.from(e.dataTransfer?.types || []).includes('Files');
+  ['dragenter', 'dragover'].forEach((type) => {
+    zone.addEventListener(type, (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      zone.classList.add('is-dragover');
+    });
+  });
+  zone.addEventListener('dragleave', (e) => {
+    if (e.relatedTarget && zone.contains(e.relatedTarget)) return;
+    zone.classList.remove('is-dragover');
+  });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('is-dragover');
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleBackupFile(file);
+  });
+  // Never let a stray drop inside the dialog navigate the browser away
+  ['dragover', 'drop'].forEach((type) => modal.addEventListener(type, (e) => e.preventDefault()));
+
+  // Backup text accordion
+  document.getElementById('bk-paste-toggle')?.addEventListener('click', () => {
+    const open = document.getElementById('bk-paste-toggle').getAttribute('aria-expanded') !== 'true';
+    setPasteAccordion(open);
+  });
+  let pasteDebounce = null;
+  document.getElementById('modal-restore-token')?.addEventListener('input', () => {
+    clearTimeout(pasteDebounce);
+    pasteDebounce = setTimeout(validateBackupText, 200);
+  });
+
+  // Import
+  document.getElementById('modal-restore-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const state = backupUi.activeSource === 'file' ? backupUi.fileState : backupUi.textState;
+    if (!state) return;
+    btn.disabled = true;
     try {
-      const parsed = await decodeBackupToken(raw);
-      await importFullState(parsed);
+      await importFullState(state);
       await refreshStateFromDB();
       renderSidebarAndProgress();
-      backupModal?.close();
-      showToast(`Welcome back, ${parsed.profile.fullName}! Your progress is loaded.`, 'success');
+      modal.close();
+      showToast(`Welcome back, ${state.profile.fullName}! Your progress is loaded.`, 'success');
       handleRoute();
     } catch (err) {
       showToast('Could not load saved progress: ' + err.message, 'error');
+      updateBackupImportButton();
     }
   });
 
-  document.getElementById('modal-reset-progress-btn')?.addEventListener('click', async () => {
-    if (!confirm('Clear all saved progress from this browser? Download a saved progress file first if you want a backup.')) return;
+  // Save Backup: download
+  document.getElementById('modal-export-json-btn')?.addEventListener('click', async () => {
+    const state = await exportFullState();
+    const safeRoll = (state.profile?.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${safeRoll}_druba-web.json`;
+    downloadFile(filename, JSON.stringify(state, null, 2));
+    showToast(`Downloaded ${filename}`, 'success');
+  });
+
+  // Save Backup: copy text (button label feedback for 2s)
+  document.getElementById('modal-copy-token-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    try {
+      const token = await encodeBackupToken(await exportFullState());
+      try {
+        await navigator.clipboard.writeText(token);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = token;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        modal.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      clearTimeout(backupUi.copyTimer);
+      btn.classList.add('is-copied');
+      btn.querySelector('.bk-copy-icon').textContent = 'check';
+      btn.querySelector('.bk-copy-label').textContent = 'Copied!';
+      backupUi.copyTimer = setTimeout(resetCopyButton, 2000);
+    } catch (err) {
+      showToast('Could not copy backup text: ' + err.message, 'error');
+    }
+  });
+
+  // Reset Progress (two-click confirmation)
+  document.getElementById('modal-reset-progress-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    if (!backupUi.resetArmed) {
+      backupUi.resetArmed = true;
+      btn.classList.add('is-confirming');
+      btn.querySelector('.bk-reset-label').textContent = 'Confirm Reset?';
+      backupUi.resetTimer = setTimeout(disarmBackupReset, 4000);
+      return;
+    }
+    disarmBackupReset();
     await clearAllData();
     await refreshStateFromDB();
     renderSidebarAndProgress();
-    backupModal?.close();
+    modal.close();
     window.location.hash = '#/';
     handleRoute();
     showToast('Saved progress cleared.', 'info');
+  });
+
+  modal.addEventListener('close', () => {
+    disarmBackupReset();
+    resetCopyButton();
   });
 }
 
@@ -396,9 +778,12 @@ function setRailCollapsed(collapsed) {
 }
 
 function initRailState() {
-  let collapsed = false;
+  let collapsed = window.innerWidth < 1280;
   try {
-    collapsed = localStorage.getItem(RAIL_STORAGE_KEY) === 'true';
+    const saved = localStorage.getItem(RAIL_STORAGE_KEY);
+    if (saved === 'true' || saved === 'false') {
+      collapsed = saved === 'true';
+    }
   } catch {}
   setRailCollapsed(collapsed);
 
@@ -420,7 +805,7 @@ function renderSidebarAndProgress() {
   const navBar = document.getElementById('nav-progress-bar');
   const navLbl = document.getElementById('nav-progress-label');
   if (navBar) navBar.value = prog.percent;
-  if (navLbl) navLbl.textContent = `${prog.done}/${prog.totalSteps} (${prog.percent}%)`;
+  if (navLbl) navLbl.textContent = `${prog.done}/${prog.totalSteps} · ${prog.percent}%`;
 
   const profileCard = document.getElementById('sidebar-profile-card');
   if (profileCard) {
@@ -429,7 +814,7 @@ function renderSidebarAndProgress() {
       profileCard.innerHTML = `
         <div class="rail-expanded-only p-3">
           <div class="flex items-center gap-2.5 min-w-0">
-            <div class="w-9 h-9 rounded-full m3-primary-container flex items-center justify-center font-bold text-sm shrink-0">
+            <div class="w-8 h-8 rounded-full m3-primary-container flex items-center justify-center font-bold text-xs shrink-0">
               ${initial}
             </div>
             <div class="min-w-0 flex-1">
@@ -439,13 +824,6 @@ function renderSidebarAndProgress() {
             <a href="#/" class="btn btn-xs btn-ghost btn-circle shrink-0" title="Course Overview">
               <span class="material-symbols-outlined icon-18">home</span>
             </a>
-          </div>
-          <div class="mt-2.5">
-            <div class="flex justify-between text-[11px] font-semibold mb-1">
-              <span>Mastery</span>
-              <span class="font-mono">${prog.percent}%</span>
-            </div>
-            <progress class="progress progress-primary h-1.5 w-full" value="${prog.percent}" max="100"></progress>
           </div>
         </div>
         <div class="rail-collapsed-only p-1.5 justify-center">
@@ -486,36 +864,50 @@ function renderSidebarAndProgress() {
     const modComplete = quizPassed && labsDone;
     const modHash = `#/module/${mod.id}`;
     const quizHash = `#/quiz/${mod.id}`;
+    const isLessonRoute = currentHash === modHash || currentHash.startsWith(`${modHash}/lesson/`);
+    const activeLessonNum = currentHash.startsWith(`${modHash}/lesson/`)
+      ? Number(currentHash.split('/')[4] || 1)
+      : (currentHash === modHash ? 1 : 0);
     const isAnyInModActive =
-      currentHash === modHash ||
+      isLessonRoute ||
       currentHash === quizHash ||
       mod.labIds.some((lid) => currentHash === `#/lab/${lid}`);
 
     html += `
       <!-- Expanded Drawer Module Block -->
       <div class="rail-expanded-only rounded-2xl p-2 ${gate.unlocked ? 'm3-surface-container' : 'm3-surface-container-low opacity-75'} border m3-border-subtle">
-        <a href="${modHash}" class="m3-nav-item ${currentHash === modHash ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-sm">
+        <a href="${modHash}" class="m3-nav-item ${isLessonRoute ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-sm">
           <span class="material-symbols-outlined icon-20 mt-0.5 shrink-0 ${modComplete ? 'filled m3-text-primary' : ''}">
             ${modComplete ? 'check_circle' : gate.unlocked ? mod.icon : 'lock'}
           </span>
           <div class="min-w-0 flex-1">
-            <div class="flex items-center justify-between gap-1">
-              <span class="font-bold text-[11px] font-mono tracking-wide uppercase opacity-75">${mod.code}</span>
-              ${!gate.unlocked ? '<span class="badge badge-xs">Locked</span>' : ''}
-            </div>
+            <span class="font-bold text-[10px] font-mono tracking-wide uppercase opacity-70 block">${mod.code}</span>
             <div class="font-semibold text-[13px] rail-module-title">${escapeHtml(mod.title)}</div>
           </div>
         </a>
 
-        <div class="mt-1.5 pl-3 flex flex-col gap-1 border-l-2 m3-border-subtle ml-4">
+        <div class="mt-1 pl-3 flex flex-col gap-0.5 border-l-2 m3-border-subtle ml-4">
+          ${gate.unlocked && isAnyInModActive ? mod.sections.map((sec, idx) => {
+            const stepNum = idx + 1;
+            const secDone = isLessonCompleted(mod.id, sec.id);
+            const secActive = isLessonRoute && activeLessonNum === stepNum;
+            return `
+              <a href="#/module/${mod.id}/lesson/${stepNum}" class="m3-nav-item ${secActive ? 'is-active' : ''} flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] min-w-0" title="${escapeHtml(sec.title)}">
+                <span class="material-symbols-outlined shrink-0 ${secDone ? 'm3-text-primary' : 'opacity-60'}" style="font-size:15px;">
+                  ${secDone ? 'check_circle' : secActive ? 'play_circle' : 'radio_button_unchecked'}
+                </span>
+                <span class="truncate">${stepNum}. ${escapeHtml(sec.title)}</span>
+              </a>
+            `;
+          }).join('') : ''}
           <a href="${quizHash}" class="m3-nav-item ${currentHash === quizHash ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex items-center justify-between px-2.5 py-1.5 rounded-full text-xs gap-2">
             <span class="flex items-center gap-1.5 min-w-0">
               <span class="material-symbols-outlined icon-18 shrink-0">quiz</span>
               <span class="truncate">Graded Quiz</span>
             </span>
             ${quizPassed
-              ? `<span class="badge badge-xs badge-success font-mono shrink-0">${appState.quizzes.get(mod.id).bestScorePercent}%</span>`
-              : `<span class="text-[10px] font-mono opacity-70 shrink-0">&ge;60%</span>`
+              ? `<span class="material-symbols-outlined m3-text-primary shrink-0" style="font-size:15px;">check_circle</span>`
+              : ''
             }
           </a>
     `;
@@ -656,7 +1048,7 @@ function renderHomeView() {
             <form id="onboarding-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <label class="form-control w-full">
                 <span class="label-text font-semibold text-sm mb-1.5">Your Full Name</span>
-                <input id="reg-fullname" type="text" required minlength="2" placeholder="e.g., Ananya Das" class="input input-bordered rounded-2xl w-full">
+                <input id="reg-fullname" type="text" required minlength="2" placeholder="e.g., Drubajyoti Debnath" class="input input-bordered rounded-2xl w-full">
               </label>
               <label class="form-control w-full">
                 <span class="label-text font-semibold text-sm mb-1.5">Student ID / Roll Number</span>
@@ -764,345 +1156,597 @@ function renderHomeView() {
   });
 
   document.getElementById('home-open-restore-btn')?.addEventListener('click', () => {
-    document.getElementById('backup-modal')?.showModal();
+    openBackupModal('load');
   });
 }
 
 // ============================================================================
-// Module Lesson View + Interactive Widgets
+// Single-Topic Full-Viewport Lesson Workspace (#/module/:id & #/module/:id/lesson/:n)
 // ============================================================================
 
-function renderLessonWidgetHtml(widgetType) {
-  if (widgetType === 'url-anatomy') {
-    return `
-      <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle mt-4" data-widget="url-anatomy">
-        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider m3-text-primary mb-2">
-          <span class="material-symbols-outlined text-[17px]">science</span>
-          Interactive URL Dissector
-        </div>
-        <input type="text" class="url-input input input-sm input-bordered w-full font-mono text-xs rounded-full mb-3"
-          value="https://www.example.in/courses/web-design.html?batch=morning#fees">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 text-xs url-parts"></div>
-      </div>
-    `;
-  }
+function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
+  const isLastLesson = currentStep >= totalLessons;
+  const checks = Array.isArray(sec.widget?.checks) ? sec.widget.checks : [];
 
-  if (widgetType === 'http-cycle') {
-    return `
-      <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle mt-4" data-widget="http-cycle">
-        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider m3-text-primary">
-            <span class="material-symbols-outlined text-[17px]">swap_horiz</span>
-            Interactive Request / Response Simulator
+  return `
+    <div id="pane-instructions" class="ide-pane">
+      <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+        <div>
+          <div id="lesson-step-label" class="text-xs font-medium m3-text-muted">
+            Module ${mod.id} &middot; Lesson ${currentStep} of ${totalLessons}
           </div>
-          <div class="flex gap-1.5">
-            <button type="button" class="btn btn-xs btn-primary rounded-full" data-http-url="/index.html">Request /index.html</button>
-            <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-http-url="/missing.html">Request /missing.html</button>
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight mt-0.5">${escapeHtml(sec.title)}</h1>
+          <p class="text-sm m3-text-muted mt-2 leading-relaxed m-0">${escapeHtml(sec.lead)}</p>
+        </div>
+
+        ${sec.points ? `
+          <ul class="space-y-2 text-sm pl-4 list-disc m-0">
+            ${sec.points.map((pt) => `
+              <li>
+                <strong class="font-semibold">${escapeHtml(pt.heading)}:</strong>
+                <span class="m3-text-muted">${escapeHtml(pt.text)}</span>
+              </li>
+            `).join('')}
+          </ul>
+        ` : ''}
+
+        ${sec.widget?.task ? `
+          <div class="pt-3 border-t m3-border-subtle">
+            <div class="text-xs font-semibold uppercase tracking-wider m3-text-primary mb-1">Try It in the Editor</div>
+            <p class="text-xs m3-text-muted m-0">${escapeHtml(sec.widget.task)}</p>
+            ${checks.length ? `
+              <div class="flex flex-wrap gap-1.5 mt-2.5" data-me-checks>
+                ${checks.map((chk, idx) => `
+                  <span class="badge badge-sm m3-surface-container border m3-border-subtle gap-1 font-medium" data-me-check="${idx}">
+                    <span class="material-symbols-outlined" style="font-size:14px">radio_button_unchecked</span>
+                    <span>${escapeHtml(chk.label)}</span>
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
           </div>
-        </div>
-        <div class="http-sim-out text-xs font-mono m3-code-block p-3">
-          Click a request button above to trace DNS → Server → HTTP Status Response.
-        </div>
-      </div>
-    `;
-  }
+        ` : ''}
 
-  if (widgetType === 'box-model') {
-    return `
-      <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle mt-4" data-widget="box-model">
-        <div class="flex items-center justify-between flex-wrap gap-2 mb-3">
-          <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider m3-text-primary">
-            <span class="material-symbols-outlined text-[17px]">crop_square</span>
-            Interactive CSS Box Model Calculator (Slide 113)
-          </div>
-          <label class="label cursor-pointer gap-2 py-0">
-            <span class="label-text text-xs font-semibold">box-sizing: border-box</span>
-            <input type="checkbox" class="toggle toggle-xs toggle-primary bm-border-box">
-          </label>
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs mb-3">
-          <label>Width: <strong class="bm-val-w">200px</strong><input type="range" min="120" max="300" value="200" class="range range-xs range-primary bm-w"></label>
-          <label>Padding: <strong class="bm-val-p">20px</strong><input type="range" min="0" max="40" value="20" class="range range-xs range-primary bm-p"></label>
-          <label>Border: <strong class="bm-val-b">5px</strong><input type="range" min="0" max="15" value="5" class="range range-xs range-primary bm-b"></label>
-          <label>Margin: <strong class="bm-val-m">15px</strong><input type="range" min="0" max="40" value="15" class="range range-xs range-primary bm-m"></label>
-        </div>
-        <div class="bm-summary font-mono text-xs p-3 rounded-xl m3-surface-container border m3-border-subtle"></div>
-      </div>
-    `;
-  }
+        ${(sec.analogy || sec.takeaway) ? `
+          <details class="m3-accordion rounded-2xl border m3-border-subtle">
+            <summary class="m3-accordion-trigger px-3.5 py-2.5 text-xs font-semibold">
+              <span>Extra Tips &amp; Examples</span>
+              <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
+            </summary>
+            <div class="m3-accordion-body px-3.5 py-3 text-xs space-y-2 m3-text-muted">
+              ${sec.analogy ? `<div><strong class="text-[var(--m3-text)]">${escapeHtml(sec.analogy.title)}:</strong> ${escapeHtml(sec.analogy.text)}</div>` : ''}
+              ${sec.takeaway ? `<div><strong class="text-[var(--m3-text)]">Takeaway:</strong> ${escapeHtml(sec.takeaway.text)}</div>` : ''}
+            </div>
+          </details>
+        ` : ''}
 
-  if (widgetType === 'security-checklist') {
-    return `
-      <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle mt-4" data-widget="security-checklist">
-        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider m3-text-primary mb-2">
-          <span class="material-symbols-outlined text-[17px]">security</span>
-          Interactive Security Audit Mini-Check
-        </div>
-        <p class="text-xs m3-text-muted mb-2.5">Click each rule to toggle its protection impact:</p>
-        <div class="flex flex-wrap gap-2 sec-checks">
-          <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-sec="https">HTTPS Enabled</button>
-          <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-sec="waf">Firewall / WAF Active</button>
-          <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-sec="text">Use textContent (not unsafe innerHTML)</button>
-          <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-sec="hash">Salted Password Hashing</button>
-        </div>
-        <div class="sec-status text-xs mt-3 font-medium"></div>
+        ${sec.microCheck ? `
+          <details class="m3-accordion rounded-2xl border m3-border-subtle" id="lesson-micro-check">
+            <summary class="m3-accordion-trigger px-3.5 py-2.5 text-xs font-semibold">
+              <span>Quick Check (Optional)</span>
+              <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
+            </summary>
+            <div class="m3-accordion-body px-3.5 py-3">
+              <p class="text-xs sm:text-sm font-medium mb-2.5 mt-0">${escapeHtml(sec.microCheck.question)}</p>
+              <div class="flex flex-col gap-1.5">
+                ${sec.microCheck.options.map((opt, oIdx) => `
+                  <button type="button" class="btn btn-xs h-auto min-h-[32px] py-1.5 px-3 justify-start text-left font-normal btn-ghost border m3-border-subtle rounded-xl" data-mc-opt="${oIdx}">
+                    <span class="font-mono font-semibold mr-2 opacity-70">${['A', 'B', 'C'][oIdx]}.</span>
+                    <span>${escapeHtml(opt)}</span>
+                  </button>
+                `).join('')}
+              </div>
+              <p id="micro-check-feedback" class="hidden text-xs mt-2.5 leading-relaxed m-0"></p>
+            </div>
+          </details>
+        ` : ''}
       </div>
-    `;
-  }
 
-  return '';
+      <!-- Anchored Bottom Lesson Footer inside Pane 1 -->
+      <footer class="border-t m3-border-subtle m3-surface-container-low px-4 py-2.5 flex items-center justify-between gap-2 shrink-0">
+        <div class="flex items-center gap-1.5">
+          ${currentStep > 1 ? `
+            <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-xs sm:btn-sm btn-ghost border m3-border-subtle rounded-full px-3" title="Previous Lesson (Alt+Left)">
+              Previous
+            </a>
+          ` : ''}
+          <a href="#/quiz/${mod.id}" class="btn btn-xs sm:btn-sm btn-ghost rounded-full px-3" title="Jump to Module ${mod.id} Quiz">
+            Take Quiz
+          </a>
+        </div>
+
+        <button id="lesson-complete-next-btn" type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full px-4 gap-1.5" title="${isLastLesson ? 'Start Quiz' : 'Next Lesson'} (Ctrl+Enter)">
+          <span>${isLastLesson ? 'Start Quiz' : 'Next'}</span>
+          <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+          <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
+        </button>
+      </footer>
+    </div>
+  `;
 }
 
-function hydrateLessonWidgets(rootEl) {
-  // URL Anatomy Widget
-  const urlW = rootEl.querySelector('[data-widget="url-anatomy"]');
-  if (urlW) {
-    const inp = urlW.querySelector('.url-input');
-    const out = urlW.querySelector('.url-parts');
-    const update = () => {
-      try {
-        const u = new URL(inp.value.trim());
-        const items = [
-          ['Protocol', u.protocol + '//'],
-          ['Domain Name', u.hostname],
-          ['Path', u.pathname],
-          ['Query', u.search || '(none)'],
-          ['Fragment', u.hash || '(none)']
-        ];
-        out.innerHTML = items.map(([k, v]) => `
-          <div class="p-2 rounded-xl m3-surface-container border m3-border-subtle">
-            <div class="text-[10px] font-bold uppercase opacity-70">${k}</div>
-            <div class="font-mono text-xs break-all mt-0.5">${escapeHtml(v)}</div>
-          </div>
-        `).join('');
-      } catch {
-        out.innerHTML = `<div class="col-span-full text-xs text-error">Enter a complete URL starting with http:// or https://</div>`;
-      }
-    };
-    inp.addEventListener('input', update);
-    update();
-  }
-
-  // HTTP Cycle Simulator
-  const httpW = rootEl.querySelector('[data-widget="http-cycle"]');
-  if (httpW) {
-    const out = httpW.querySelector('.http-sim-out');
-    httpW.querySelectorAll('[data-http-url]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const path = btn.dataset.httpUrl;
-        const ok = path === '/index.html';
-        out.innerHTML = `
-          <div>1. Browser → DNS Lookup for <strong>www.example.in</strong> → <code>203.0.113.42</code></div>
-          <div>2. Browser → HTTPS Request: <code>GET ${escapeHtml(path)} HTTP/1.1</code></div>
-          <div>3. Server → Status: <strong class="${ok ? 'text-success' : 'text-error'}">${ok ? '200 OK' : '404 Not Found'}</strong></div>
-          <div>4. Browser → ${ok ? 'Parses HTML, CSS & JS and renders page!' : 'Displays friendly 404 Not Found error page.'}</div>
-        `;
-      });
-    });
-  }
-
-  // Box Model Calculator
-  const bmW = rootEl.querySelector('[data-widget="box-model"]');
-  if (bmW) {
-    const wEl = bmW.querySelector('.bm-w');
-    const pEl = bmW.querySelector('.bm-p');
-    const bEl = bmW.querySelector('.bm-b');
-    const mEl = bmW.querySelector('.bm-m');
-    const bbEl = bmW.querySelector('.bm-border-box');
-    const sumEl = bmW.querySelector('.bm-summary');
-
-    const updateBM = () => {
-      const w = Number(wEl.value);
-      const p = Number(pEl.value);
-      const b = Number(bEl.value);
-      const m = Number(mEl.value);
-      const bb = bbEl.checked;
-      bmW.querySelector('.bm-val-w').textContent = `${w}px`;
-      bmW.querySelector('.bm-val-p').textContent = `${p}px`;
-      bmW.querySelector('.bm-val-b').textContent = `${b}px`;
-      bmW.querySelector('.bm-val-m').textContent = `${m}px`;
-      const renderedBoxWidth = bb ? w : w + p * 2 + b * 2;
-      const contentWidth = bb ? Math.max(0, w - p * 2 - b * 2) : w;
-      sumEl.innerHTML = `
-        <div><strong>Total Rendered Box Width (Content + 2×Padding + 2×Border):</strong> <span class="m3-text-primary font-bold">${renderedBoxWidth}px</span></div>
-        <div class="opacity-80 mt-0.5">Inner Content Width: ${contentWidth}px · Outer Space with Margins: ${renderedBoxWidth + m * 2}px</div>
-      `;
-    };
-    [wEl, pEl, bEl, mEl, bbEl].forEach((el) => el.addEventListener('input', updateBM));
-    updateBM();
-  }
-
-  // Security Audit Mini-Check
-  const secW = rootEl.querySelector('[data-widget="security-checklist"]');
-  if (secW) {
-    const active = new Set(['https', 'waf']);
-    const status = secW.querySelector('.sec-status');
-    const renderSec = () => {
-      secW.querySelectorAll('[data-sec]').forEach((b) => {
-        const on = active.has(b.dataset.sec);
-        b.classList.toggle('btn-primary', on);
-        b.classList.toggle('m3-btn-tonal', !on);
-      });
-      const score = active.size;
-      status.textContent = `Active Defences: ${score}/4 — ${score === 4 ? 'Strong defence-in-depth!' : 'Enable all 4 layers to prevent eavesdropping, XSS, and credential leaks.'}`;
-    };
-    secW.querySelectorAll('[data-sec]').forEach((b) => {
-      b.addEventListener('click', () => {
-        if (active.has(b.dataset.sec)) active.delete(b.dataset.sec);
-        else active.add(b.dataset.sec);
-        renderSec();
-      });
-    });
-    renderSec();
-  }
-}
-
-function renderModuleView(moduleId) {
+function renderModuleView(moduleId, lessonStep = 1) {
   const mod = getModuleById(moduleId);
   if (!mod) {
+    setWorkspaceLayoutMode(false);
     renderLockedView('Module', 'Module not found.', '#/');
     return;
   }
   const gate = getModuleGateStatus(mod.id);
   if (!gate.unlocked) {
+    setWorkspaceLayoutMode(false);
     renderLockedView(`Module ${mod.id}: ${mod.title}`, gate.reason, gate.targetHash || '#/');
     return;
   }
 
-  const quizRec = appState.quizzes.get(mod.id);
-  const labs = getLabsByModule(mod.id);
+  setWorkspaceLayoutMode(true);
+
+  const lessons = mod.sections || [];
+  const totalLessons = lessons.length;
+  const currentStep = Math.min(totalLessons, Math.max(1, Number(lessonStep) || 1));
+  const sec = lessons[currentStep - 1];
+  const isLastLesson = currentStep >= totalLessons;
+  const widgetType = sec.widget?.type || '';
+  const isHtmlCodeLesson = widgetType === 'mini-editor';
+  const isJsCodeLesson = widgetType === 'js-sandbox';
+  const isCodeWorkspace = isHtmlCodeLesson || isJsCodeLesson;
   const view = document.getElementById('app-view');
 
-  view.innerHTML = `
-    <article class="flex flex-col gap-6">
-      <!-- Module Header -->
-      <div class="m3-card rounded-3xl p-6 border m3-border-subtle">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div class="flex flex-wrap items-center gap-2 mb-2">
-              <span class="badge m3-primary-container font-mono font-bold">${mod.code}</span>
-              <span class="badge m3-tonal-badge text-xs">${escapeHtml(mod.slideRefs)}</span>
-            </div>
-            <h1 class="text-2xl sm:text-3xl font-extrabold">${escapeHtml(mod.title)}</h1>
-            <p class="text-sm m3-text-muted mt-1">${escapeHtml(mod.subtitle)}</p>
-            <div class="text-xs font-medium mt-2 opacity-85">${escapeHtml(mod.co)}</div>
-          </div>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <a href="#/quiz/${mod.id}" class="btn btn-primary rounded-full gap-2 px-5">
-              <span class="material-symbols-outlined text-[19px]">quiz</span>
-              ${quizRec?.passed ? `Retake Quiz (${quizRec.bestScorePercent}%)` : 'Take Graded Quiz'}
-            </a>
+  if (isCodeWorkspace) {
+    const presets = isJsCodeLesson && Array.isArray(sec.widget?.presets) ? sec.widget.presets : [];
+    const starterHtml = isHtmlCodeLesson ? (sec.widget?.starterHtml || '') : '';
+    const starterJs = isJsCodeLesson ? (presets[0]?.code || 'console.log("Hello JS!");') : '';
+    const activeTabKey = isJsCodeLesson ? 'js' : 'html';
+    const fileLabel = isJsCodeLesson ? 'app.js' : 'index.html';
+
+    view.innerHTML = `
+      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}">
+        <!-- Mobile Segmented Tab Bar (< 1024px) -->
+        <div class="p-2 border-b m3-border-subtle m3-surface-container-low lg:hidden">
+          <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container grid grid-cols-3" id="mobile-pane-tabs">
+            <button type="button" class="tab tab-sm rounded-full tab-active" data-pane="instructions">Lesson</button>
+            <button type="button" class="tab tab-sm rounded-full" data-pane="editor">Editor</button>
+            <button type="button" class="tab tab-sm rounded-full" data-pane="preview">${isJsCodeLesson ? 'Console' : 'Preview'}</button>
           </div>
         </div>
-      </div>
 
-      <!-- Lesson Sections -->
-      <div class="flex flex-col gap-5">
-        ${mod.sections.map((sec, idx) => `
-          <section class="m3-surface-container-lowest rounded-3xl p-5 sm:p-7 border m3-border-subtle">
-            <div class="flex items-center gap-2 text-[11px] font-bold tracking-wider uppercase m3-text-primary mb-1.5">
-              <span>Lesson ${idx + 1}</span>
-              <span>·</span>
-              <span>${escapeHtml(sec.badge)}</span>
-            </div>
-            <h2 class="text-xl font-bold">${escapeHtml(sec.title)}</h2>
-            <p class="text-sm sm:text-base m3-text-muted mt-1.5 leading-relaxed">${escapeHtml(sec.lead)}</p>
+        <!-- 3-Pane Draggable Split Container -->
+        <div id="ide-split-container" class="ide-split-container">
+          <!-- Pane 1: Clean Lesson Guide (~32%) -->
+          ${renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons)}
 
-            ${sec.points ? `
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 mt-4">
-                ${sec.points.map((pt) => `
-                  <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle flex gap-3">
-                    <div class="w-9 h-9 rounded-xl m3-primary-container flex items-center justify-center shrink-0">
-                      <span class="material-symbols-outlined text-[19px]">${pt.icon || 'check'}</span>
-                    </div>
-                    <div>
-                      <div class="font-bold text-sm">${escapeHtml(pt.heading)}</div>
-                      <p class="text-xs sm:text-sm m3-text-muted mt-1 leading-relaxed">${escapeHtml(pt.text)}</p>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
+          <div id="resizer-1" class="ide-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Lesson and Editor"></div>
 
-            ${sec.steps ? `
-              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 mt-4">
-                ${sec.steps.map((st) => `
-                  <div class="m3-surface-container rounded-2xl p-3 border m3-border-subtle text-xs sm:text-sm font-medium">
-                    ${escapeHtml(st)}
-                  </div>
-                `).join('')}
-              </div>
-            ` : ''}
-
-            ${sec.comparison ? `
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle">
-                  <h3 class="font-bold text-sm m3-text-primary mb-2">${escapeHtml(sec.comparison.leftTitle)}</h3>
-                  <ul class="list-disc pl-5 text-xs sm:text-sm m3-text-muted space-y-1.5">
-                    ${sec.comparison.leftPoints.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}
-                  </ul>
-                </div>
-                <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle">
-                  <h3 class="font-bold text-sm m3-text-primary mb-2">${escapeHtml(sec.comparison.rightTitle)}</h3>
-                  <ul class="list-disc pl-5 text-xs sm:text-sm m3-text-muted space-y-1.5">
-                    ${sec.comparison.rightPoints.map((p) => `<li>${escapeHtml(p)}</li>`).join('')}
-                  </ul>
+          <!-- Pane 2: Full CodeMirror 5 Editor (~34%) -->
+          <div id="pane-editor" class="ide-pane">
+            <div class="h-10 px-2.5 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between gap-1.5 shrink-0">
+              <div class="min-w-0 flex-1 overflow-x-auto no-scrollbar">
+                <div role="tablist" class="tabs tabs-boxed rounded-full p-0.5 m3-surface-container inline-flex flex-nowrap w-max">
+                  <button id="tab-btn-${activeTabKey}" type="button" role="tab" class="tab tab-xs rounded-full tab-active font-mono text-[11px] px-2.5 whitespace-nowrap">${fileLabel}</button>
                 </div>
               </div>
-            ` : ''}
 
-            ${sec.callout ? `
-              <div class="alert ${sec.callout.type === 'warning' ? 'alert-warning' : 'm3-surface-container'} rounded-2xl mt-4 border m3-border-subtle text-xs sm:text-sm">
-                <span class="material-symbols-outlined text-[20px]">${sec.callout.type === 'warning' ? 'warning' : 'lightbulb'}</span>
-                <span>${escapeHtml(sec.callout.text)}</span>
-              </div>
-            ` : ''}
-
-            ${sec.codeExamples ? sec.codeExamples.map((ex) => `
-              <div class="m3-code-block mt-4">
-                <div class="m3-code-header">
-                  <span class="font-mono font-semibold">${escapeHtml(ex.filename)}</span>
-                  <button type="button" class="btn btn-ghost btn-xs text-xs text-emerald-300 copy-code-btn" data-copy="${escapeHtml(ex.code)}">
-                    Copy
+              <div class="flex items-center gap-1 shrink-0">
+                <div class="dropdown dropdown-end">
+                  <button type="button" tabindex="0" class="btn btn-xs btn-ghost btn-circle" title="Emmet Cheatsheet" aria-label="Emmet Cheatsheet">
+                    <span class="material-symbols-outlined icon-18">bolt</span>
                   </button>
+                  <div tabindex="0" class="dropdown-content z-50 w-64 p-3 rounded-2xl shadow-xl border m3-border-subtle m3-modal-box text-xs">
+                    <div class="font-bold mb-1.5 flex items-center gap-1.5">
+                      <span class="material-symbols-outlined icon-18 m3-text-primary">bolt</span>
+                      <span>Emmet Shortcuts (Press Tab)</span>
+                    </div>
+                    <div class="space-y-1 font-mono text-[11px]">
+                      <div class="flex justify-between"><code>!</code><span class="m3-text-muted">HTML5 page</span></div>
+                      <div class="flex justify-between"><code>div+p</code><span class="m3-text-muted">Sibling tags</span></div>
+                      <div class="flex justify-between"><code>ul&gt;li*3</code><span class="m3-text-muted">List items</span></div>
+                      <div class="flex justify-between"><code>.card&gt;h3+p</code><span class="m3-text-muted">Class card</span></div>
+                    </div>
+                  </div>
                 </div>
-                <pre class="m3-code-pre"><code>${escapeHtml(ex.code)}</code></pre>
+
+                <button id="editor-hint-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Autocomplete (Ctrl+Space)" aria-label="Autocomplete">
+                  <span class="material-symbols-outlined icon-18">code_blocks</span>
+                </button>
+                <button id="lesson-reset-btn" type="button" class="btn btn-xs btn-ghost rounded-full gap-1" title="Reset Starter Code">
+                  <span class="material-symbols-outlined icon-18">restart_alt</span>
+                  <span>Reset</span>
+                </button>
+                <button id="lesson-run-btn" type="button" class="btn btn-xs btn-primary rounded-full px-3 gap-1" title="Run Code">
+                  <span class="material-symbols-outlined" style="font-size:15px">play_arrow</span>
+                  <span>Run</span>
+                </button>
               </div>
-            `).join('') : ''}
+            </div>
 
-            ${sec.widget ? renderLessonWidgetHtml(sec.widget) : ''}
-          </section>
-        `).join('')}
-      </div>
+            ${presets.length ? `
+              <div class="px-2.5 py-1.5 border-b m3-border-subtle m3-surface-container-low flex flex-wrap gap-1.5 shrink-0">
+                ${presets.map((p, idx) => `
+                  <button type="button" class="btn btn-xs ${idx === 0 ? 'm3-btn-tonal font-semibold' : 'btn-ghost border m3-border-subtle'} rounded-full" data-js-preset="${idx}">
+                    ${escapeHtml(p.label)}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
 
-      <!-- Module Action Footer -->
-      <div class="m3-card rounded-3xl p-6 border m3-border-subtle flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h3 class="font-bold text-lg">Ready for the Module ${mod.id} Quiz?</h3>
-          <p class="text-xs sm:text-sm m3-text-muted mt-0.5">
-            Score <strong>60% or higher</strong> on the quiz to ${labs.length ? `unlock ${labs.map((l) => l.code).join(', ')}` : mod.id === 5 ? 'unlock your Certificate of Completion' : 'unlock Module 2'}.
-          </p>
+            <div class="ide-editor-wrap">
+              ${isHtmlCodeLesson
+                ? '<div id="editor-wrap-html"><div id="editor-html"></div></div>'
+                : '<div id="editor-wrap-js"><div id="editor-js"></div></div>'}
+            </div>
+
+            <div id="ide-symbol-bar" class="m3-symbol-bar lg:hidden" aria-label="Code Symbol Toolbar">
+              <button type="button" class="m3-symbol-pill is-emmet" data-action="emmet">
+                <span class="material-symbols-outlined icon-18">bolt</span>
+                <span>Emmet</span>
+              </button>
+              ${['<', '>', '/', '=', '"', '{', '}', ';', '(', ')', ':', '.', '#', '!'].map((sym) => `
+                <button type="button" class="m3-symbol-pill" data-symbol="${escapeHtml(sym)}">${escapeHtml(sym)}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div id="resizer-2" class="ide-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Editor and Output"></div>
+
+          <!-- Pane 3: Full-Height Browser Output / Console (~34%) -->
+          <div id="pane-preview" class="ide-pane">
+            ${isHtmlCodeLesson ? `
+              <div class="h-10 px-3 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between shrink-0">
+                <span class="text-xs font-bold uppercase tracking-wider m3-text-muted flex items-center gap-1.5">
+                  <span class="material-symbols-outlined icon-18">preview</span>
+                  <span>Live Preview</span>
+                </span>
+                <button id="preview-refresh-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Refresh Preview" aria-label="Refresh Preview">
+                  <span class="material-symbols-outlined icon-18">refresh</span>
+                </button>
+              </div>
+              <iframe id="ide-preview-iframe" class="ide-preview-frame" sandbox="allow-scripts allow-modals" title="Browser Output Preview"></iframe>
+              <div id="ide-console-drawer" class="border-t m3-border-subtle m3-surface-container-low shrink-0">
+                <div id="ide-console-toggle" class="h-9 px-3 flex items-center justify-between cursor-pointer select-none">
+                  <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider m3-text-muted">
+                    <span class="material-symbols-outlined icon-18">terminal</span>
+                    <span>Console</span>
+                    <span id="ide-console-count" class="badge badge-xs m3-tonal-badge font-mono">0</span>
+                  </div>
+                  <div class="flex items-center gap-1">
+                    <button id="ide-console-clear-btn" type="button" class="btn btn-xs btn-ghost rounded-full text-[11px]">Clear</button>
+                    <span id="ide-console-chevron" class="material-symbols-outlined icon-18">expand_less</span>
+                  </div>
+                </div>
+                <div id="ide-console-body" class="hidden max-h-32 overflow-y-auto px-3 py-2 m3-surface-container-lowest border-t m3-border-subtle">
+                  <div id="ide-console-output" class="text-xs font-mono"></div>
+                </div>
+              </div>
+            ` : `
+              <div class="h-10 px-3 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between shrink-0">
+                <span class="text-xs font-bold uppercase tracking-wider m3-text-muted flex items-center gap-1.5">
+                  <span class="material-symbols-outlined icon-18">terminal</span>
+                  <span>Sandbox Console &amp; Variables</span>
+                </span>
+                <button id="ide-console-clear-btn" type="button" class="btn btn-xs btn-ghost rounded-full text-[11px]">Clear</button>
+              </div>
+              <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+                <div class="m3-code-block p-3.5 font-mono text-xs space-y-1 min-h-[160px]" id="ide-console-output">
+                  <div class="opacity-60">Click Run to execute JavaScript...</div>
+                </div>
+                <div class="m3-surface-container-low rounded-2xl p-3.5 border m3-border-subtle">
+                  <div class="text-[11px] font-bold uppercase tracking-wider m3-text-muted mb-2">Variable &amp; Return Inspector</div>
+                  <div class="flex flex-wrap gap-1.5 text-xs font-mono" id="lesson-js-vars">
+                    <span class="m3-text-muted">Add <code>return { ... }</code> to inspect variables.</span>
+                  </div>
+                </div>
+              </div>
+            `}
+          </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <a href="#/quiz/${mod.id}" class="btn btn-primary rounded-full px-6 gap-2">
-            <span class="material-symbols-outlined text-[20px]">quiz</span>
-            Start Module Quiz (10 Questions)
-          </a>
-          ${quizRec?.passed && labs.length ? `
-            <a href="#/lab/${labs[0].id}" class="btn m3-btn-tonal rounded-full px-5 gap-2">
-              <span class="material-symbols-outlined text-[19px]">code</span>
-              Go to ${labs[0].code}
-            </a>
-          ` : ''}
-        </div>
-      </div>
-    </article>
-  `;
+      </section>
+    `;
 
-  view.querySelectorAll('.copy-code-btn').forEach((btn) => {
-    btn.addEventListener('click', () => copyToClipboard(btn.dataset.copy, 'Code snippet copied!'));
+    const checks = Array.isArray(sec.widget?.checks) ? sec.widget.checks : [];
+    const syncMiniChecks = (codeText) => {
+      checks.forEach((chk, idx) => {
+        const badge = view.querySelector(`[data-me-check="${idx}"]`);
+        if (!badge) return;
+        let ok = false;
+        try { ok = Boolean(chk.test(codeText)); } catch { ok = false; }
+        const icon = badge.querySelector('.material-symbols-outlined');
+        if (icon) icon.textContent = ok ? 'check_circle' : 'radio_button_unchecked';
+        badge.classList.toggle('m3-primary-container', ok);
+        badge.classList.toggle('m3-surface-container', !ok);
+      });
+    };
+
+    const ide = new LabIDEController({
+      lab: {
+        id: 0,
+        tabs: [activeTabKey],
+        starterHtml,
+        starterCss: '',
+        starterJs
+      },
+      isBonus: true,
+      initialTab: activeTabKey,
+      onCodeChange: isHtmlCodeLesson
+        ? (codeObj) => {
+            syncMiniChecks(codeObj.html || '');
+            ide.runPreviewOnly();
+          }
+        : null,
+      customRunner: isJsCodeLesson
+        ? async (codeObj) => {
+            const outEl = document.getElementById('ide-console-output');
+            const varsEl = document.getElementById('lesson-js-vars');
+            const result = await runJsInSandbox(codeObj.js || '');
+            if (outEl) {
+              const lines = [];
+              for (const p of result.popups || []) {
+                lines.push(`<div class="text-amber-300">[${escapeHtml(p.kind)}] "${escapeHtml(p.text)}" &rarr; ${escapeHtml(p.result)}</div>`);
+              }
+              for (const l of result.logs || []) {
+                const cls = l.level === 'error' ? 'text-rose-300' : 'text-emerald-200';
+                lines.push(`<div class="${cls}">&gt; ${escapeHtml(l.text)}</div>`);
+              }
+              outEl.innerHTML = lines.length ? lines.join('') : '<div class="opacity-60">(No console output)</div>';
+            }
+            if (varsEl) {
+              if (result.returned && typeof result.returned === 'object') {
+                varsEl.innerHTML = Object.entries(result.returned).map(([k, v]) => `
+                  <span class="badge badge-sm m3-primary-container font-mono">${escapeHtml(k)}: ${escapeHtml(JSON.stringify(v))}</span>
+                `).join('');
+              } else if (result.returned !== null && result.returned !== undefined) {
+                varsEl.innerHTML = `<span class="badge badge-sm m3-primary-container font-mono">return: ${escapeHtml(String(result.returned))}</span>`;
+              } else {
+                varsEl.innerHTML = '<span class="m3-text-muted">Add <code>return { ... }</code> to inspect variables.</span>';
+              }
+            }
+          }
+        : null,
+      onShortcutSave: async () => {
+        if (isHtmlCodeLesson) {
+          const currentHtml = ide.editors.html ? ide.editors.html.getValue() : (ide.code.html || '');
+          ide.code.html = currentHtml;
+          syncMiniChecks(currentHtml);
+        } else if (isJsCodeLesson && ide.editors.js) {
+          ide.code.js = ide.editors.js.getValue();
+        }
+        await ide.runPreviewOnly();
+        showToast('Code saved & preview updated', 'success');
+      },
+      onShortcutRunAdvance: async () => {
+        if (isHtmlCodeLesson) {
+          const currentHtml = ide.editors.html ? ide.editors.html.getValue() : (ide.code.html || '');
+          ide.code.html = currentHtml;
+          ide.runPreviewOnly();
+          syncMiniChecks(currentHtml);
+          const allChecksPass = checks.length === 0 || checks.every((chk) => {
+            try { return Boolean(chk.test(currentHtml)); } catch { return false; }
+          });
+          if (!allChecksPass) {
+            showToast('Preview updated — finish the Goal checks in Pane 1 to advance.', 'error');
+            return;
+          }
+        } else if (isJsCodeLesson) {
+          if (ide.editors.js) ide.code.js = ide.editors.js.getValue();
+          await ide.runPreviewOnly();
+        }
+        document.getElementById('lesson-complete-next-btn')?.click();
+      }
+    });
+
+    appState.shortcutContext = {
+      onRunAdvance: ide.onShortcutRunAdvance,
+      onSave: ide.onShortcutSave
+    };
+
+    appState.activeIDE = ide;
+    ide.mount({
+      htmlEl: document.getElementById('editor-html'),
+      jsEl: document.getElementById('editor-js'),
+      htmlWrap: document.getElementById('editor-wrap-html'),
+      jsWrap: document.getElementById('editor-wrap-js'),
+      htmlTabBtn: document.getElementById('tab-btn-html'),
+      jsTabBtn: document.getElementById('tab-btn-js'),
+      symbolBar: document.getElementById('ide-symbol-bar'),
+      iframe: document.getElementById('ide-preview-iframe'),
+      consoleEl: document.getElementById('ide-console-output'),
+      consoleCountEl: document.getElementById('ide-console-count')
+    });
+
+    if (isHtmlCodeLesson) syncMiniChecks(starterHtml);
+
+    appState.cleanupSplitResizers = initSplitResizers(
+      document.getElementById('ide-split-container'),
+      document.getElementById('pane-instructions'),
+      document.getElementById('pane-editor'),
+      document.getElementById('pane-preview'),
+      document.getElementById('resizer-1'),
+      document.getElementById('resizer-2'),
+      ide
+    );
+
+    const runLessonPreview = () => {
+      ide.runPreviewOnly();
+      if (isHtmlCodeLesson) syncMiniChecks(ide.code.html || '');
+    };
+    document.getElementById('lesson-run-btn')?.addEventListener('click', runLessonPreview);
+    document.getElementById('preview-refresh-btn')?.addEventListener('click', runLessonPreview);
+    document.getElementById('lesson-reset-btn')?.addEventListener('click', () => {
+      ide.resetStarterCode();
+      if (isHtmlCodeLesson) syncMiniChecks(starterHtml);
+    });
+    document.getElementById('editor-hint-btn')?.addEventListener('click', () => {
+      const cm = ide.editors[ide.activeTab];
+      if (cm) {
+        cm.focus();
+        ide.triggerAutocomplete(cm, ide.activeTab, true);
+      }
+    });
+
+    // JS Sandbox preset chips
+    view.querySelectorAll('[data-js-preset]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const p = presets[Number(btn.dataset.jsPreset)];
+        if (!p) return;
+        view.querySelectorAll('[data-js-preset]').forEach((b) => {
+          b.classList.toggle('m3-btn-tonal', b === btn);
+          b.classList.toggle('font-semibold', b === btn);
+          b.classList.toggle('btn-ghost', b !== btn);
+        });
+        ide.setCode('js', p.code);
+      });
+    });
+
+    // Console drawer / clear
+    const consoleBody = document.getElementById('ide-console-body');
+    const consoleChevron = document.getElementById('ide-console-chevron');
+    document.getElementById('ide-console-toggle')?.addEventListener('click', (e) => {
+      if (e.target.closest('#ide-console-clear-btn')) return;
+      const isHidden = consoleBody?.classList.toggle('hidden');
+      if (consoleChevron) consoleChevron.textContent = isHidden ? 'expand_less' : 'expand_more';
+    });
+    document.getElementById('ide-console-clear-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const out = document.getElementById('ide-console-output');
+      const cnt = document.getElementById('ide-console-count');
+      if (out) out.innerHTML = '';
+      if (cnt) cnt.textContent = '0';
+    });
+
+    // Mobile 3-pane switcher (< 1024px)
+    const mobileTabs = document.getElementById('mobile-pane-tabs');
+    if (mobileTabs) {
+      const panes = {
+        instructions: document.getElementById('pane-instructions'),
+        editor: document.getElementById('pane-editor'),
+        preview: document.getElementById('pane-preview')
+      };
+      const syncMobilePanes = (active) => {
+        if (window.innerWidth >= 1024) {
+          Object.values(panes).forEach((p) => p?.classList.remove('hidden'));
+          return;
+        }
+        Object.entries(panes).forEach(([k, p]) => p?.classList.toggle('hidden', k !== active));
+        mobileTabs.querySelectorAll('[data-pane]').forEach((b) => {
+          b.classList.toggle('tab-active', b.dataset.pane === active);
+        });
+        if (active === 'editor') {
+          ide.syncTheme();
+          ide.refreshEditors();
+        }
+      };
+      mobileTabs.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-pane]');
+        if (btn) syncMobilePanes(btn.dataset.pane);
+      });
+      syncMobilePanes('instructions');
+    }
+  } else {
+    // Full-Viewport 2-Pane Simulator Workspace (M1L1-4, M4L1-4, M5L1-4)
+    view.innerHTML = `
+      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}">
+        <!-- Mobile 2-Tab Switcher (< 1024px) -->
+        <div class="p-2 border-b m3-border-subtle m3-surface-container-low lg:hidden">
+          <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container grid grid-cols-2" id="mobile-pane-tabs">
+            <button type="button" class="tab tab-sm rounded-full tab-active" data-pane="instructions">Lesson</button>
+            <button type="button" class="tab tab-sm rounded-full" data-pane="simulator">Interactive Lab</button>
+          </div>
+        </div>
+
+        <div id="ide-split-container" class="ide-split-container">
+          ${renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons)}
+
+          <div id="resizer-1" class="ide-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Lesson and Simulator"></div>
+
+          <div id="pane-simulator" class="ide-pane">
+            <div class="flex-1 overflow-y-auto p-5 sm:p-8 flex flex-col justify-center">
+              <div class="w-full max-w-2xl mx-auto">
+                ${renderLessonWidgetHtml(sec.widget)}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
+
+    hydrateLessonWidget(view, sec.widget);
+
+    appState.cleanupSplitResizers = initSplitResizers(
+      document.getElementById('ide-split-container'),
+      document.getElementById('pane-instructions'),
+      document.getElementById('pane-simulator'),
+      null,
+      document.getElementById('resizer-1'),
+      null,
+      null
+    );
+
+    const mobileTabs = document.getElementById('mobile-pane-tabs');
+    if (mobileTabs) {
+      const panes = {
+        instructions: document.getElementById('pane-instructions'),
+        simulator: document.getElementById('pane-simulator')
+      };
+      const syncMobilePanes = (active) => {
+        if (window.innerWidth >= 1024) {
+          Object.values(panes).forEach((p) => p?.classList.remove('hidden'));
+          return;
+        }
+        Object.entries(panes).forEach(([k, p]) => p?.classList.toggle('hidden', k !== active));
+        mobileTabs.querySelectorAll('[data-pane]').forEach((b) => {
+          b.classList.toggle('tab-active', b.dataset.pane === active);
+        });
+      };
+      mobileTabs.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-pane]');
+        if (btn) syncMobilePanes(btn.dataset.pane);
+      });
+      syncMobilePanes('instructions');
+    }
+  }
+
+  // Hydrate Quick Check accordion in Pane 1
+  if (sec.microCheck) {
+    const mcRoot = document.getElementById('lesson-micro-check');
+    const fbEl = document.getElementById('micro-check-feedback');
+    mcRoot?.querySelectorAll('[data-mc-opt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const picked = Number(btn.dataset.mcOpt);
+        const ok = picked === sec.microCheck.correctIndex;
+        mcRoot.querySelectorAll('[data-mc-opt]').forEach((b) => {
+          const idx = Number(b.dataset.mcOpt);
+          b.classList.remove('btn-primary', 'm3-btn-tonal', 'btn-ghost');
+          if (idx === picked) {
+            b.classList.add(ok ? 'btn-primary' : 'm3-btn-tonal');
+          } else {
+            b.classList.add('btn-ghost');
+          }
+        });
+        fbEl.classList.remove('hidden', 'm3-text-primary', 'text-error');
+        fbEl.classList.add(ok ? 'm3-text-primary' : 'text-error');
+        fbEl.textContent = `${ok ? 'Correct.' : 'Not quite.'} ${sec.microCheck.explanation}`;
+      });
+    });
+  }
+
+  // Save micro-lesson completion in IndexedDB and advance
+  document.getElementById('lesson-complete-next-btn')?.addEventListener('click', async () => {
+    await markLessonCompleted(mod.id, sec.id, currentStep);
+    appState.lessons.add(`${mod.id}:${sec.id}`);
+    renderSidebarAndProgress();
+    if (isLastLesson) {
+      window.location.hash = `#/quiz/${mod.id}`;
+    } else {
+      window.location.hash = `#/module/${mod.id}/lesson/${currentStep + 1}`;
+    }
   });
-  hydrateLessonWidgets(view);
+
+  if (!isCodeWorkspace) {
+    appState.shortcutContext = {
+      onRunAdvance: () => {
+        document.getElementById('lesson-complete-next-btn')?.click();
+      }
+    };
+  }
 }
 
 // ============================================================================
@@ -1204,24 +1848,28 @@ function drawQuizSession(mod, quiz, prevRecord) {
             </div>
             <div class="flex flex-wrap gap-2">
               ${!result.passed ? `
-                <button id="retake-quiz-btn" type="button" class="btn btn-primary rounded-full px-5 gap-1.5">
+                <button id="retake-quiz-btn" type="button" class="btn btn-primary rounded-full px-5 gap-1.5" title="Try Quiz Again (Ctrl+Enter)">
                   <span class="material-symbols-outlined text-[18px]">shuffle</span>
                   Try Quiz Again
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                 </button>
               ` : labs.length ? `
-                <a href="#/lab/${labs[0].id}" class="btn btn-primary rounded-full px-5 gap-1.5">
+                <a id="quiz-continue-btn" href="#/lab/${labs[0].id}" class="btn btn-primary rounded-full px-5 gap-1.5" title="Continue (Ctrl+Enter)">
                   <span>Start ${labs[0].code}</span>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                   <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </a>
               ` : mod.id < 5 ? `
-                <a href="#/module/${mod.id + 1}" class="btn btn-primary rounded-full px-5 gap-1.5">
+                <a id="quiz-continue-btn" href="#/module/${mod.id + 1}" class="btn btn-primary rounded-full px-5 gap-1.5" title="Continue (Ctrl+Enter)">
                   <span>Continue to Module ${mod.id + 1}</span>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                   <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </a>
               ` : `
-                <a href="#/certificate" class="btn btn-primary rounded-full px-5 gap-1.5">
+                <a id="quiz-continue-btn" href="#/certificate" class="btn btn-primary rounded-full px-5 gap-1.5" title="View Your Certificate (Ctrl+Enter)">
                   <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
                   View Your Certificate
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                 </a>
               `}
             </div>
@@ -1286,9 +1934,10 @@ function drawQuizSession(mod, quiz, prevRecord) {
 
         ${!result ? `
           <div class="flex justify-end gap-3 mt-2">
-            <button type="submit" class="btn btn-primary btn-lg rounded-full px-8 gap-2">
+            <button type="submit" class="btn btn-primary btn-lg rounded-full px-8 gap-2" title="Submit Quiz (Ctrl+Enter)">
               <span class="material-symbols-outlined">task_alt</span>
-              Submit Quiz &amp; Check Mastery
+              <span>Submit Quiz &amp; Check Mastery</span>
+              <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
             </button>
           </div>
         ` : `
@@ -1353,14 +2002,34 @@ function drawQuizSession(mod, quiz, prevRecord) {
   };
   document.getElementById('retake-quiz-btn')?.addEventListener('click', handleRetake);
   document.getElementById('retake-quiz-bottom-btn')?.addEventListener('click', handleRetake);
+
+  appState.shortcutContext = {
+    onRunAdvance: () => {
+      if (!session.submittedResult) {
+        const form = document.getElementById('quiz-form');
+        if (form) {
+          if (typeof form.requestSubmit === 'function') form.requestSubmit();
+          else form.dispatchEvent(new Event('submit', { cancelable: true }));
+        }
+        return;
+      }
+      if (session.submittedResult.passed) {
+        const nextLink = document.getElementById('quiz-continue-btn');
+        if (nextLink) {
+          window.location.hash = nextLink.getAttribute('href') || '#/';
+        }
+      } else {
+        handleRetake();
+      }
+    }
+  };
 }
 
 // ============================================================================
 // Practical Lab IDE View (Full-Viewport 3-Pane Draggable Workspace)
 // ============================================================================
 
-function loadPaneSplits() {
-  const defaults = [26, 40, 34];
+function loadPaneSplits(defaults = [32, 34, 34]) {
   try {
     const raw = JSON.parse(localStorage.getItem(SPLITS_STORAGE_KEY) || 'null');
     if (Array.isArray(raw) && raw.length === 3 && raw.every((n) => typeof n === 'number' && n >= 15)) {
@@ -1371,24 +2040,31 @@ function loadPaneSplits() {
 }
 
 function savePaneSplits(splits) {
+  if (!Array.isArray(splits) || splits.length !== 3) return;
   try {
     localStorage.setItem(SPLITS_STORAGE_KEY, JSON.stringify(splits.map((n) => Number(n.toFixed(2)))));
   } catch {}
 }
 
-function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, ide) {
-  let splits = loadPaneSplits();
+function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, ide = null) {
+  const isTwoPane = !pane3;
+  let splits = isTwoPane ? [36, 64] : loadPaneSplits([32, 34, 34]);
 
   const applySplits = () => {
     if (window.innerWidth < 1024) {
       pane1.style.flex = '';
       pane2.style.flex = '';
-      pane3.style.flex = '';
+      if (pane3) pane3.style.flex = '';
       return;
     }
-    pane1.style.flex = `0 0 calc(${splits[0]}% - 4px)`;
-    pane2.style.flex = `0 0 calc(${splits[1]}% - 4px)`;
-    pane3.style.flex = `0 0 calc(${splits[2]}% - 4px)`;
+    if (isTwoPane) {
+      pane1.style.flex = `0 0 calc(${splits[0]}% - 3px)`;
+      pane2.style.flex = `0 0 calc(${splits[1]}% - 3px)`;
+    } else {
+      pane1.style.flex = `0 0 calc(${splits[0]}% - 4px)`;
+      pane2.style.flex = `0 0 calc(${splits[1]}% - 4px)`;
+      pane3.style.flex = `0 0 calc(${splits[2]}% - 4px)`;
+    }
   };
 
   let activeDrag = null;
@@ -1396,7 +2072,8 @@ function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, i
   const startDrag = (which, e) => {
     if (window.innerWidth < 1024) return;
     e.preventDefault();
-    const totalWidth = container.getBoundingClientRect().width - 12; // subtract two 6px resizers
+    const resizerPixels = isTwoPane ? 6 : 12;
+    const totalWidth = container.getBoundingClientRect().width - resizerPixels;
     if (totalWidth <= 0) return;
 
     activeDrag = {
@@ -1407,7 +2084,7 @@ function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, i
       resizerEl: which === 1 ? resizer1 : resizer2
     };
     document.body.classList.add('is-resizing');
-    activeDrag.resizerEl.classList.add('is-dragging');
+    activeDrag.resizerEl?.classList.add('is-dragging');
   };
 
   const onMouseMove = (e) => {
@@ -1415,7 +2092,10 @@ function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, i
     const minPct = (240 / activeDrag.totalWidth) * 100;
     const deltaPct = ((e.clientX - activeDrag.startX) / activeDrag.totalWidth) * 100;
 
-    if (activeDrag.which === 1) {
+    if (isTwoPane) {
+      let next0 = Math.max(minPct, Math.min(100 - minPct, activeDrag.startSplits[0] + deltaPct));
+      splits = [next0, 100 - next0];
+    } else if (activeDrag.which === 1) {
       const combined = activeDrag.startSplits[0] + activeDrag.startSplits[1];
       let next0 = Math.max(minPct, Math.min(combined - minPct, activeDrag.startSplits[0] + deltaPct));
       let next1 = combined - next0;
@@ -1428,21 +2108,21 @@ function initSplitResizers(container, pane1, pane2, pane3, resizer1, resizer2, i
     }
 
     applySplits();
-    ide.refreshEditors();
+    ide?.refreshEditors();
   };
 
   const onMouseUp = () => {
     if (!activeDrag) return;
     document.body.classList.remove('is-resizing');
-    activeDrag.resizerEl.classList.remove('is-dragging');
+    activeDrag.resizerEl?.classList.remove('is-dragging');
     savePaneSplits(splits);
     activeDrag = null;
-    ide.refreshEditors();
+    ide?.refreshEditors();
   };
 
   const onWindowResize = () => {
     applySplits();
-    ide.refreshEditors();
+    ide?.refreshEditors();
   };
 
   resizer1?.addEventListener('mousedown', (e) => startDrag(1, e));
@@ -1528,15 +2208,16 @@ async function renderLabView(labId, isBonus = false) {
             <span class="hidden md:inline">Reset</span>
           </button>
 
-          <button id="ide-preview-btn" type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1" title="Run Preview">
+          <button id="ide-preview-btn" type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1" title="Run Preview (Ctrl+S)">
             <span class="material-symbols-outlined icon-18">play_arrow</span>
             <span>Run</span>
           </button>
 
           ${!isBonus ? `
-            <button id="ide-verify-btn" type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full px-3.5 gap-1.5" title="Run Automatic Code Check">
+            <button id="ide-verify-btn" type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full px-3.5 gap-1.5" title="Run Automatic Code Check & Advance (Ctrl+Enter)">
               <span class="material-symbols-outlined icon-18">verified</span>
               <span>Check My Code</span>
+              <kbd class="m3-kbd-on-primary hidden md:inline-flex">Ctrl+Enter</kbd>
             </button>
           ` : ''}
         </div>
@@ -1567,9 +2248,12 @@ async function renderLabView(labId, isBonus = false) {
               </ol>
             </div>
 
-            <details class="collapse collapse-arrow m3-surface-container-low rounded-2xl border m3-border-subtle">
-              <summary class="collapse-title text-xs font-bold py-2.5 min-h-0">Need a Hint? View Example Code</summary>
-              <div class="collapse-content">
+            <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle">
+              <summary class="m3-accordion-trigger px-3.5 py-2.5 text-xs font-bold">
+                <span>Need a Hint? View Example Code</span>
+                <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
+              </summary>
+              <div class="m3-accordion-body px-3.5 py-2.5">
                 <pre class="text-[11px] font-mono overflow-x-auto whitespace-pre-wrap leading-relaxed">${escapeHtml(lab.hint)}</pre>
               </div>
             </details>
@@ -1590,14 +2274,22 @@ async function renderLabView(labId, isBonus = false) {
 
             <div id="ide-next-cta" class="${savedRec?.completed ? '' : 'hidden'} pt-2 border-t m3-border-subtle">
               ${nextLab ? `
-                <a href="#/lab/${nextLab.id}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5">
+                <a href="#/lab/${nextLab.id}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="Next Lab (Ctrl+Enter)">
                   <span>Next: ${escapeHtml(nextLab.code)}</span>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                   <span class="material-symbols-outlined icon-18">arrow_forward</span>
                 </a>
               ` : mod && mod.id < 5 ? `
-                <a href="#/module/${mod.id + 1}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5">
+                <a href="#/module/${mod.id + 1}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="Proceed to Next Module (Ctrl+Enter)">
                   <span>Proceed to Module ${mod.id + 1}</span>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                   <span class="material-symbols-outlined icon-18">arrow_forward</span>
+                </a>
+              ` : !isBonus && mod && mod.id === 5 ? `
+                <a href="#/certificate" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="View Your Certificate (Ctrl+Enter)">
+                  <span class="material-symbols-outlined icon-18">workspace_premium</span>
+                  <span>View Certificate</span>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
                 </a>
               ` : ''}
             </div>
@@ -1721,7 +2413,30 @@ async function renderLabView(labId, isBonus = false) {
         `;
       }
     },
+    onShortcutSave: async (ctrl) => {
+      for (const tabKey of lab.tabs || []) {
+        if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
+      }
+      await ctrl.persistDraft();
+      ctrl.runPreviewOnly();
+      showToast('Code saved & preview updated', 'success');
+    },
+    onShortcutRunAdvance: async (ctrl) => {
+      for (const tabKey of lab.tabs || []) {
+        if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
+      }
+      if (isBonus) {
+        ctrl.runPreviewOnly();
+        showToast('Preview updated.', 'info');
+        return;
+      }
+      ctrl.pendingShortcutAdvance = true;
+      ctrl.runAndVerify();
+    },
     onVerifyComplete: async (res) => {
+      const shouldAdvance = Boolean(ide.pendingShortcutAdvance);
+      ide.pendingShortcutAdvance = false;
+
       const box = document.getElementById('ide-assertions-box');
       if (box) {
         box.innerHTML = res.results.map((r) => `
@@ -1743,7 +2458,16 @@ async function renderLabView(labId, isBonus = false) {
         document.getElementById('ide-next-cta')?.classList.remove('hidden');
         showToast(`Nice work! All ${res.totalAssertions} checks passed for ${lab.code}.`, 'success');
 
-        if (areModuleLabsCompleted(lab.moduleId)) {
+        const moduleCompleted = areModuleLabsCompleted(lab.moduleId);
+        if (shouldAdvance) {
+          const nextHash = nextLab
+            ? `#/lab/${nextLab.id}`
+            : mod && mod.id < 5
+              ? `#/module/${mod.id + 1}`
+              : '#/certificate';
+          window.location.hash = nextHash;
+        }
+        if (moduleCompleted) {
           const unlockedMod = lab.moduleId < 5 ? `Module ${lab.moduleId + 1}` : 'your Certificate';
           await triggerCheckpointModal(
             `Module ${lab.moduleId} Complete`,
@@ -1756,6 +2480,11 @@ async function renderLabView(labId, isBonus = false) {
       }
     }
   });
+
+  appState.shortcutContext = {
+    onRunAdvance: () => ide.onShortcutRunAdvance?.(ide),
+    onSave: () => ide.onShortcutSave?.(ide)
+  };
 
   appState.activeIDE = ide;
   ide.mount({
@@ -2029,12 +2758,15 @@ async function renderCertificateView() {
       </article>
 
       <!-- Collapsible Certificate Verification Code Drawer (Hidden in Print) -->
-      <details class="collapse collapse-arrow m3-surface-container-lowest rounded-3xl border m3-border-subtle no-print">
-        <summary class="collapse-title font-bold text-sm flex items-center gap-2">
-          <span class="material-symbols-outlined icon-18 m3-text-primary">key</span>
-          <span>Certificate Verification Code (share to verify your completed labs)</span>
+      <details class="m3-accordion m3-surface-container-lowest rounded-3xl border m3-border-subtle no-print">
+        <summary class="m3-accordion-trigger px-5 py-3.5 font-bold text-sm">
+          <span class="flex items-center gap-2 min-w-0">
+            <span class="material-symbols-outlined icon-18 m3-text-primary shrink-0">key</span>
+            <span>Certificate Verification Code (share to verify your completed labs)</span>
+          </span>
+          <span class="material-symbols-outlined icon-20 m3-accordion-chevron" aria-hidden="true">expand_more</span>
         </summary>
-        <div class="collapse-content flex flex-col gap-3">
+        <div class="m3-accordion-body px-5 py-4 flex flex-col gap-3">
           <textarea id="cert-key-box" readonly rows="4" class="textarea textarea-bordered w-full font-mono text-[11px] leading-snug rounded-2xl m3-surface-container-low">${escapeHtml(generated.key)}</textarea>
           <div class="flex flex-wrap gap-2 justify-end">
             <a href="#/verify" class="btn btn-xs sm:btn-sm btn-outline rounded-full gap-1.5">
@@ -2569,7 +3301,158 @@ function openMobileDrawer() {
   document.getElementById('drawer-backdrop')?.classList.remove('hidden');
 }
 
+// ============================================================================
+// Centralized Keyboard Shortcuts & Sequential Step Navigation
+// ============================================================================
+
+function buildCourseSequence() {
+  const sequence = [];
+  for (const mod of MODULES) {
+    const unlockedMod = getModuleGateStatus(mod.id).unlocked;
+    const lessonCount = (mod.sections || []).length;
+    for (let step = 1; step <= lessonCount; step += 1) {
+      sequence.push({
+        hash: `#/module/${mod.id}/lesson/${step}`,
+        unlocked: unlockedMod
+      });
+    }
+    sequence.push({
+      hash: `#/quiz/${mod.id}`,
+      unlocked: unlockedMod
+    });
+    for (const lab of getLabsByModule(mod.id)) {
+      sequence.push({
+        hash: `#/lab/${lab.id}`,
+        unlocked: getLabGateStatus(lab.id).unlocked
+      });
+    }
+  }
+  sequence.push({
+    hash: '#/certificate',
+    unlocked: isCertificateUnlocked()
+  });
+  return sequence;
+}
+
+function normalizeRouteHash(rawHash) {
+  const clean = (rawHash || '#/').split('?')[0];
+  const parts = clean.replace(/^#/, '').split('/').filter(Boolean);
+  if (parts.length === 0) return '#/';
+  if (parts[0] === 'module' && parts[1]) {
+    const step = parts[2] === 'lesson' && parts[3] ? Number(parts[3]) : 1;
+    return `#/module/${Number(parts[1])}/lesson/${step}`;
+  }
+  if (parts[0] === 'quiz' && parts[1]) return `#/quiz/${Number(parts[1])}`;
+  if (parts[0] === 'lab' && parts[1]) return `#/lab/${Number(parts[1])}`;
+  return `#/${parts[0]}`;
+}
+
+function navigateCourseStep(delta) {
+  const current = normalizeRouteHash(window.location.hash);
+  const sequence = buildCourseSequence();
+
+  if (current === '#/' && delta > 0) {
+    window.location.hash = sequence[0]?.hash || '#/module/1/lesson/1';
+    return;
+  }
+
+  const idx = sequence.findIndex((item) => item.hash === current);
+  if (idx < 0) return;
+
+  const target = sequence[idx + delta];
+  if (!target) return;
+
+  if (!target.unlocked) {
+    showToast('Complete the current quiz or lab checks to unlock the next step.', 'info');
+    return;
+  }
+
+  window.location.hash = target.hash;
+}
+
+function isEditableTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  if (target.closest('.CodeMirror, .ide-fallback-textarea')) return true;
+  if (target.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]')) return true;
+  return false;
+}
+
+function initKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    const key = e.key;
+    const modKey = e.ctrlKey || e.metaKey;
+    const inEditor = Boolean(e.target instanceof Element && e.target.closest('.CodeMirror, .ide-fallback-textarea'));
+    const inEditable = isEditableTarget(e.target);
+
+    // 1. Escape closes open modals, popovers, dropdowns, and mobile drawer
+    if (key === 'Escape') {
+      const openDialog = document.querySelector('dialog[open]');
+      if (openDialog && typeof openDialog.close === 'function') {
+        openDialog.close();
+      }
+      const settingsMenu = document.getElementById('nav-settings-menu');
+      if (settingsMenu && !settingsMenu.classList.contains('hidden')) {
+        settingsMenu.classList.add('hidden');
+        document.getElementById('nav-settings-btn')?.setAttribute('aria-expanded', 'false');
+      }
+      if (document.activeElement && document.activeElement.closest('.dropdown')) {
+        document.activeElement.blur();
+      }
+      closeMobileDrawer();
+      return;
+    }
+
+    // Do not run route/lesson shortcuts while a modal dialog is open
+    const hasOpenModal = Boolean(document.querySelector('dialog[open]'));
+    if (hasOpenModal) return;
+
+    // 2. ? Opens Shortcuts Cheatsheet Modal (outside editors & inputs)
+    if (key === '?' && !modKey && !e.altKey && !inEditable) {
+      e.preventDefault();
+      const modal = document.getElementById('shortcuts-modal');
+      if (modal && typeof modal.showModal === 'function') modal.showModal();
+      return;
+    }
+
+    // 3. Ctrl+S / Cmd+S (outside CodeMirror/fallback textarea which handle it natively)
+    if (modKey && !e.altKey && (key === 's' || key === 'S')) {
+      if (inEditor) return;
+      e.preventDefault();
+      if (appState.shortcutContext?.onSave) {
+        appState.shortcutContext.onSave();
+      } else {
+        showToast('All progress is saved automatically in your browser.', 'info');
+      }
+      return;
+    }
+
+    // 4. Ctrl+Enter / Cmd+Enter (outside CodeMirror/fallback textarea which handle it natively)
+    if (modKey && !e.altKey && key === 'Enter') {
+      if (inEditor) return;
+      if (appState.shortcutContext?.onRunAdvance) {
+        e.preventDefault();
+        appState.shortcutContext.onRunAdvance();
+      }
+      return;
+    }
+
+    // 5. Alt+ArrowLeft / Alt+ArrowRight (works everywhere, including CodeMirror)
+    if (e.altKey && !modKey && !e.shiftKey && (key === 'ArrowRight' || key === 'ArrowLeft')) {
+      e.preventDefault();
+      navigateCourseStep(key === 'ArrowRight' ? 1 : -1);
+      return;
+    }
+
+    // 6. Ctrl+ArrowLeft / Ctrl+ArrowRight (only outside text inputs & CodeMirror)
+    if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !inEditable && (key === 'ArrowRight' || key === 'ArrowLeft')) {
+      e.preventDefault();
+      navigateCourseStep(key === 'ArrowRight' ? 1 : -1);
+    }
+  });
+}
+
 async function handleRoute() {
+  appState.shortcutContext = null;
   if (appState.cleanupSplitResizers) {
     appState.cleanupSplitResizers();
     appState.cleanupSplitResizers = null;
@@ -2597,8 +3480,8 @@ async function handleRoute() {
   }
 
   if (parts[0] === 'module' && parts[1]) {
-    setWorkspaceLayoutMode(false);
-    renderModuleView(Number(parts[1]));
+    const lessonStep = parts[2] === 'lesson' && parts[3] ? Number(parts[3]) : 1;
+    renderModuleView(Number(parts[1]), lessonStep);
     return;
   }
 
@@ -2681,10 +3564,13 @@ async function bootstrap() {
     initRailState();
     await refreshStateFromDB();
     bindGlobalModals();
+    initKeyboardShortcuts();
 
-    document.getElementById('theme-toggle-btn')?.addEventListener('click', () => {
-      const current = document.documentElement.getAttribute('data-theme');
-      applyTheme(current === 'm3-dark' ? 'm3-light' : 'm3-dark');
+    document.querySelectorAll('.js-theme-toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme');
+        applyTheme(current === 'm3-dark' ? 'm3-light' : 'm3-dark');
+      });
     });
 
     document.getElementById('drawer-toggle-btn')?.addEventListener('click', openMobileDrawer);

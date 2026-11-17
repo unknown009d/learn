@@ -1,16 +1,17 @@
 /**
  * Native IndexedDB Storage Wrapper for Vanilla Web Foundations
- * Object stores: student_profile, quizzes, practicals
+ * Object stores: student_profile, quizzes, practicals, lesson_progress
  */
 
 const DB_NAME = 'druba_web_learning_db';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 const memoryFallback = {
   student_profile: new Map(),
   quizzes: new Map(),
-  practicals: new Map()
+  practicals: new Map(),
+  lesson_progress: new Map()
 };
 
 function openDatabase() {
@@ -34,6 +35,9 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains('practicals')) {
         db.createObjectStore('practicals', { keyPath: 'labId' });
+      }
+      if (!db.objectStoreNames.contains('lesson_progress')) {
+        db.createObjectStore('lesson_progress', { keyPath: 'lessonKey' });
       }
     };
 
@@ -181,11 +185,37 @@ export async function savePracticalProgress(labId, patch = {}) {
   return record;
 }
 
+export async function getAllLessonProgress() {
+  const list = await withStore('lesson_progress', 'readonly', (s) => s.getAll());
+  if (Array.isArray(list)) {
+    return list;
+  }
+  return Array.from(memoryFallback.lesson_progress.values());
+}
+
+export async function markLessonCompleted(moduleId, lessonId, lessonIndex) {
+  const numMod = Number(moduleId);
+  const lessonKey = `${numMod}:${lessonId}`;
+  const now = new Date().toISOString();
+  const record = {
+    lessonKey,
+    moduleId: numMod,
+    lessonId: String(lessonId),
+    lessonIndex: Number(lessonIndex),
+    completed: true,
+    completedAt: now
+  };
+  memoryFallback.lesson_progress.set(lessonKey, record);
+  await withStore('lesson_progress', 'readwrite', (s) => s.put(record));
+  return record;
+}
+
 export async function exportFullState() {
-  const [profile, quizzes, practicals] = await Promise.all([
+  const [profile, quizzes, practicals, lessons] = await Promise.all([
     getProfile(),
     getAllQuizzes(),
-    getAllPracticals()
+    getAllPracticals(),
+    getAllLessonProgress()
   ]);
 
   return {
@@ -195,7 +225,8 @@ export async function exportFullState() {
     exportedAt: new Date().toISOString(),
     profile,
     quizzes,
-    practicals
+    practicals,
+    lessons
   };
 }
 
@@ -231,6 +262,16 @@ export async function importFullState(stateObj) {
     }
   }
 
+  if (Array.isArray(stateObj.lessons)) {
+    for (const l of stateObj.lessons) {
+      if (l && l.lessonKey) {
+        const rec = { ...l, moduleId: Number(l.moduleId) };
+        memoryFallback.lesson_progress.set(rec.lessonKey, rec);
+        await withStore('lesson_progress', 'readwrite', (s) => s.put(rec));
+      }
+    }
+  }
+
   return exportFullState();
 }
 
@@ -238,8 +279,10 @@ export async function clearAllData() {
   memoryFallback.student_profile.clear();
   memoryFallback.quizzes.clear();
   memoryFallback.practicals.clear();
+  memoryFallback.lesson_progress.clear();
 
   await withStore('student_profile', 'readwrite', (s) => s.clear());
   await withStore('quizzes', 'readwrite', (s) => s.clear());
   await withStore('practicals', 'readwrite', (s) => s.clear());
+  await withStore('lesson_progress', 'readwrite', (s) => s.clear());
 }
