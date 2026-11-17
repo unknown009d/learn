@@ -175,6 +175,8 @@
 html {
   scroll-behavior: smooth;
   font-family: 'Google Sans', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .m3-body {
@@ -182,6 +184,8 @@ html {
   color: var(--m3-text);
   margin: 0;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 h1, h2, h3, h4 {
@@ -228,6 +232,11 @@ code, pre, .font-mono {
   border-bottom: 1px solid var(--m3-outline-variant);
   backdrop-filter: none !important;
   opacity: 1 !important;
+  width: 100%;
+  max-width: 100vw;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
 }
 
 .m3-sidebar {
@@ -252,6 +261,13 @@ code, pre, .font-mono {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35) !important;
   opacity: 1 !important;
   backdrop-filter: none !important;
+}
+
+@media (max-width: 639px) {
+  .modal-box.m3-modal-box {
+    width: calc(100vw - 24px);
+    max-width: 480px;
+  }
 }
 
 dialog.modal::backdrop,
@@ -700,9 +716,21 @@ dialog.modal::backdrop,
   #app-view {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: calc(100dvh - 56px);
     height: auto !important;
     overflow: visible !important;
+  }
+  main#app-view > section,
+  main#app-view .m3-card,
+  main#app-view .m3-surface-container-lowest,
+  main#app-view .m3-code-block {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
   .ide-workspace-root {
     min-height: calc(100dvh - 56px);
@@ -756,7 +784,7 @@ dialog.modal::backdrop,
     z-index: 40;
     background-color: var(--m3-surface-container-low);
     border-top: 1px solid var(--m3-outline-variant);
-    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    padding: 12px 16px calc(16px + env(safe-area-inset-bottom));
     margin: auto -1rem -1rem;
   }
   .m3-quiz-mobile-bar .btn {
@@ -1079,6 +1107,8 @@ body.is-resizing iframe {
   border: 1px solid rgba(52, 211, 117, 0.22);
   border-radius: 1rem;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .m3-code-header {
@@ -1095,6 +1125,7 @@ body.is-resizing iframe {
   margin: 0;
   padding: 0.85rem 1rem;
   overflow-x: auto;
+  max-width: 100%;
   font-size: 0.83rem;
   line-height: 1.55;
   tab-size: 2;
@@ -1163,6 +1194,8 @@ body.is-resizing iframe {
 
 #certificate-stage {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   position: relative;
 }
