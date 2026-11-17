@@ -2893,7 +2893,7 @@ async function renderCertificateView() {
               <!-- Center Column: High-Scannability QR Code (104x104, 8px white quiet zone) -->
               <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
                 <div style="background:#ffffff;padding:8px;display:inline-flex;align-items:center;justify-content:center;">
-                  <canvas id="cert-qr-canvas" width="104" height="104" style="width:104px;height:104px;display:block;"></canvas>
+                  <canvas id="cert-qr-canvas" width="208" height="208" style="width:104px;height:104px;display:block;image-rendering:pixelated;"></canvas>
                   <div id="cert-qr-fallback" class="hidden"></div>
                 </div>
                 <div style="font-size:11px;font-weight:500;color:#64748B;line-height:1.3;">Scan to verify</div>
@@ -2931,20 +2931,58 @@ async function renderCertificateView() {
     </section>
   `;
 
-  // Render QR Code via QRious (or deterministic SVG fallback if offline)
+  // Render QR Code via QRious, scaled edge-to-edge into the 104x104 (208x208 retina) canvas
   const qrCanvas = document.getElementById('cert-qr-canvas');
   const qrFallback = document.getElementById('cert-qr-fallback');
   if (typeof window.QRious === 'function' && qrCanvas) {
     try {
+      const tmpCanvas = document.createElement('canvas');
       new window.QRious({
-        element: qrCanvas,
+        element: tmpCanvas,
         value: qrPayload,
-        size: 104,
+        size: 400,
         padding: 0,
-        level: 'M',
+        level: 'L',
         background: '#FFFFFF',
         foreground: '#111827'
       });
+      const tmpCtx = tmpCanvas.getContext('2d', { willReadFrequently: true });
+      const { width: tw, height: th } = tmpCanvas;
+      const img = tmpCtx.getImageData(0, 0, tw, th).data;
+      let minX = tw;
+      let minY = th;
+      let maxX = -1;
+      let maxY = -1;
+      for (let y = 0; y < th; y++) {
+        for (let x = 0; x < tw; x++) {
+          const i = (y * tw + x) * 4;
+          if (img[i] < 128) {
+            if (x < minX) minX = x;
+            if (y < minY) minY = y;
+            if (x > maxX) maxX = x;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      const dstCtx = qrCanvas.getContext('2d');
+      dstCtx.fillStyle = '#FFFFFF';
+      dstCtx.fillRect(0, 0, qrCanvas.width, qrCanvas.height);
+      dstCtx.imageSmoothingEnabled = false;
+      if (maxX >= minX && maxY >= minY) {
+        dstCtx.drawImage(
+          tmpCanvas,
+          minX,
+          minY,
+          maxX - minX + 1,
+          maxY - minY + 1,
+          0,
+          0,
+          qrCanvas.width,
+          qrCanvas.height
+        );
+      } else {
+        dstCtx.drawImage(tmpCanvas, 0, 0, qrCanvas.width, qrCanvas.height);
+      }
     } catch {
       if (qrFallback) {
         qrCanvas.classList.add('hidden');
@@ -3039,7 +3077,10 @@ async function renderCertificateView() {
       const dstQr = clonedSheet.querySelector('#cert-qr-canvas');
       if (srcQr && dstQr && !srcQr.classList.contains('hidden')) {
         const ctx = dstQr.getContext('2d');
-        if (ctx) ctx.drawImage(srcQr, 0, 0);
+        if (ctx) {
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(srcQr, 0, 0, dstQr.width, dstQr.height);
+        }
       }
 
       offscreenHost.appendChild(clonedSheet);
