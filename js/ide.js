@@ -441,7 +441,10 @@ export class LabIDEController {
     this.onCodeChange = options.onCodeChange || null;
     this.customRunner = options.customRunner || null;
     this.onShortcutRunAdvance = options.onShortcutRunAdvance || null;
+    this.onShortcutRunPreview = options.onShortcutRunPreview || null;
+    this.onShortcutReset = options.onShortcutReset || null;
     this.onShortcutSave = options.onShortcutSave || null;
+    this.onShortcutToggleSidebar = options.onShortcutToggleSidebar || null;
     this.isBonus = Boolean(options.isBonus);
 
     this.activeTab = options.initialTab || 'html';
@@ -527,6 +530,36 @@ export class LabIDEController {
               this.code[spec.key] = instance.getValue();
               if (this.onShortcutRunAdvance) this.onShortcutRunAdvance(this);
             },
+            'Alt-R': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutRunPreview) this.onShortcutRunPreview(this);
+            },
+            'Ctrl-Shift-R': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutRunPreview) this.onShortcutRunPreview(this);
+            },
+            'Cmd-Shift-R': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutRunPreview) this.onShortcutRunPreview(this);
+            },
+            'Alt-Backspace': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutReset) this.onShortcutReset(this);
+            },
+            'Ctrl-Shift-X': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutReset) this.onShortcutReset(this);
+            },
+            'Cmd-Shift-X': (instance) => {
+              this.code[spec.key] = instance.getValue();
+              if (this.onShortcutReset) this.onShortcutReset(this);
+            },
+            'Ctrl-B': () => {
+              if (this.onShortcutToggleSidebar) this.onShortcutToggleSidebar();
+            },
+            'Cmd-B': () => {
+              if (this.onShortcutToggleSidebar) this.onShortcutToggleSidebar();
+            },
             'Ctrl-S': (instance) => {
               this.code[spec.key] = instance.getValue();
               if (this.onShortcutSave) this.onShortcutSave(this);
@@ -609,6 +642,27 @@ export class LabIDEController {
 
         ta.addEventListener('keydown', (e) => {
           const mod = e.ctrlKey || e.metaKey;
+          const lower = e.key.toLowerCase();
+          if (mod && !e.altKey && !e.shiftKey && lower === 'b') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (this.onShortcutToggleSidebar) this.onShortcutToggleSidebar();
+            return;
+          }
+          if ((e.altKey && !mod && !e.shiftKey && lower === 'r') || (mod && e.shiftKey && !e.altKey && lower === 'r')) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.code[spec.key] = ta.value;
+            if (this.onShortcutRunPreview) this.onShortcutRunPreview(this);
+            return;
+          }
+          if ((e.altKey && !mod && !e.shiftKey && e.key === 'Backspace') || (mod && e.shiftKey && !e.altKey && lower === 'x')) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.code[spec.key] = ta.value;
+            if (this.onShortcutReset) this.onShortcutReset(this);
+            return;
+          }
           if (mod && e.key === 'Enter') {
             e.preventDefault();
             e.stopPropagation();

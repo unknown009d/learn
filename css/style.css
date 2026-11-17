@@ -694,12 +694,77 @@ dialog.modal::backdrop,
 @media (max-width: 1023px) {
   .m3-shell {
     height: auto !important;
-    min-height: calc(100vh - 56px);
+    min-height: calc(100dvh - 56px);
     overflow: visible !important;
   }
   #app-view {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100dvh - 56px);
     height: auto !important;
     overflow: visible !important;
+  }
+  .ide-workspace-root {
+    min-height: calc(100dvh - 56px);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+  .ide-split-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  .ide-pane:not(.hidden) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  #mobile-pane-tabs .tab {
+    min-height: 44px;
+    height: auto;
+    font-size: 13.5px;
+    font-weight: 600;
+  }
+  .m3-mobile-sticky-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    background-color: var(--m3-surface-container-low);
+    border-top: 1px solid var(--m3-outline-variant);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    margin-top: auto;
+  }
+  .m3-mobile-split-actions {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr;
+    gap: 12px;
+  }
+  .m3-mobile-prev-wrap {
+    display: contents;
+  }
+  .m3-mobile-split-actions .btn {
+    min-height: 48px;
+    height: auto;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 9999px;
+  }
+  .m3-quiz-mobile-bar {
+    position: sticky;
+    bottom: 0;
+    z-index: 40;
+    background-color: var(--m3-surface-container-low);
+    border-top: 1px solid var(--m3-outline-variant);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    margin: auto -1rem -1rem;
+  }
+  .m3-quiz-mobile-bar .btn {
+    width: 100%;
+    min-height: 48px;
+    height: auto;
+    font-size: 15px;
+    font-weight: 600;
   }
   .m3-sidebar {
     transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -1096,18 +1161,25 @@ body.is-resizing iframe {
   position: relative;
 }
 
-.m3-a4-certificate {
+#certificate-stage {
   width: 100%;
-  max-width: 1050px;
-  margin-left: auto;
-  margin-right: auto;
+  overflow: hidden;
+  position: relative;
+}
+
+#certificate-sheet,
+.m3-a4-certificate {
+  width: 1122px;
+  height: 794px;
+  flex-shrink: 0;
+  transform-origin: top left;
   background: #FAFDFB;
   color: #111827;
   border: 1px solid #E2E8F0;
   outline: none;
   border-radius: 14px;
   box-shadow: 0 12px 32px rgba(17, 24, 39, 0.06);
-  padding: clamp(16px, 3.6vw, 44px);
+  padding: 40px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -1120,21 +1192,104 @@ body.is-resizing iframe {
   flex: 1;
   background: #FFFFFF;
   border: 1.5px solid #146C43;
-  padding: clamp(20px, 3.2vw, 38px) clamp(24px, 4vw, 48px);
+  padding: 52px 60px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 1.25rem;
+  gap: 20px;
   box-sizing: border-box;
 }
 
-@media (min-width: 768px) {
-  .m3-a4-certificate {
-    aspect-ratio: 297 / 210;
+.cert-footer-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 24px;
+  padding-top: 0;
+}
+
+/* Certificate Export Dropdown Menu (Solid Opaque M3 Surface) */
+.cert-export-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 210px;
+  padding: 6px;
+  background-color: var(--surface-container-high) !important;
+  color: var(--m3-text) !important;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 14px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  z-index: 9999;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (min-width: 640px) {
+  .cert-export-menu {
+    left: auto;
+    right: 0;
   }
-  .m3-a4-certificate-inner {
-    gap: 0.75rem;
-  }
+}
+
+.cert-export-menu.hidden {
+  display: none;
+}
+
+.cert-export-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--m3-text);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 140ms ease;
+}
+
+.cert-export-item:hover,
+.cert-export-item:focus-visible {
+  background-color: var(--m3-state-hover);
+  outline: none;
+}
+
+/* Verification Camera QR Scanner */
+.verify-scanner-frame {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #0b0f0c;
+  border: 1px solid var(--m3-outline-variant);
+}
+
+.verify-scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.verify-scanner-reticle {
+  position: absolute;
+  inset: 18%;
+  border: 2px solid rgba(52, 211, 117, 0.9);
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.38);
+  pointer-events: none;
 }
 
 .no-scrollbar {
@@ -1244,7 +1399,14 @@ body.is-resizing iframe {
   body:not(.is-certificate-route) main#app-view {
     padding: 12mm !important;
   }
+  body.is-certificate-route #certificate-stage {
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  body.is-certificate-route #certificate-sheet,
   body.is-certificate-route .m3-a4-certificate {
+    transform: none !important;
     width: 297mm !important;
     height: 210mm !important;
     max-width: none !important;

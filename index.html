@@ -147,7 +147,7 @@
       </button>
 
       <!-- Desktop Shrinkable Rail Trigger -->
-      <button id="rail-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle hidden lg:inline-flex shrink-0" aria-label="Toggle Navigation Rail" title="Toggle Navigation Rail">
+      <button id="rail-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle hidden lg:inline-flex shrink-0" aria-label="Toggle Navigation Rail" title="Toggle Sidebar (Ctrl+B)">
         <span id="rail-toggle-icon" class="material-symbols-outlined icon-20">dock_to_left</span>
       </button>
 
@@ -431,16 +431,16 @@
   </dialog>
 
   <!-- Keyboard Shortcuts Cheatsheet Modal -->
-  <dialog id="shortcuts-modal" class="modal">
-    <div class="modal-box m3-modal-box rounded-3xl max-w-xl p-6">
-      <div class="flex items-start justify-between gap-3">
+  <dialog id="shortcuts-modal" class="modal" aria-labelledby="shortcuts-modal-title">
+    <div class="modal-box m3-modal-box rounded-3xl w-[calc(100vw-2rem)] max-w-2xl p-6">
+      <div class="flex items-center justify-between gap-3 pb-4 border-b m3-border-subtle">
         <div class="flex items-center gap-3">
-          <div class="w-11 h-11 rounded-2xl m3-primary-container flex items-center justify-center shrink-0">
-            <span class="material-symbols-outlined">keyboard</span>
+          <div class="w-10 h-10 rounded-2xl m3-primary-container flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined icon-20">keyboard</span>
           </div>
           <div>
-            <h3 class="font-bold text-lg">Keyboard Shortcuts</h3>
-            <p class="text-xs m3-text-muted">Navigate lessons, run code, and verify labs without leaving the keyboard.</p>
+            <h3 id="shortcuts-modal-title" class="font-bold text-lg leading-tight">Keyboard Shortcuts</h3>
+            <p class="text-xs m3-text-muted mt-0.5">Quick controls for workspace, editor, and navigation</p>
           </div>
         </div>
         <form method="dialog">
@@ -450,66 +450,57 @@
         </form>
       </div>
 
-      <div class="mt-4 rounded-2xl border m3-border-subtle overflow-hidden">
-        <table class="table table-sm w-full m3-shortcuts-table">
-          <thead>
-            <tr class="m3-surface-container-low text-xs">
-              <th class="w-44">Shortcut</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody class="text-xs sm:text-sm">
-            <tr>
-              <td class="whitespace-nowrap">
-                <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">Enter</kbd>
-                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Cmd</kbd> + <kbd class="m3-kbd">Enter</kbd></div>
-              </td>
-              <td>Run code &amp; advance to the next step (works inside CodeMirror, checks labs, completes lessons, or submits quizzes).</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap">
-                <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">S</kbd>
-                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Cmd</kbd> + <kbd class="m3-kbd">S</kbd></div>
-              </td>
-              <td>Save your current draft and refresh the live preview (without opening browser Save).</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap">
-                <kbd class="m3-kbd">Alt</kbd> + <kbd class="m3-kbd">&rarr;</kbd>
-                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">&rarr;</kbd>*</div>
-              </td>
-              <td>Move forward to the next unlocked lesson, quiz, or practical lab.</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap">
-                <kbd class="m3-kbd">Alt</kbd> + <kbd class="m3-kbd">&larr;</kbd>
-                <div class="text-[11px] m3-text-muted mt-0.5">or <kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">&larr;</kbd>*</div>
-              </td>
-              <td>Return to the previous lesson, quiz, or practical lab.</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap"><kbd class="m3-kbd">Ctrl</kbd> + <kbd class="m3-kbd">Space</kbd></td>
-              <td>Open autocomplete suggestions inside the code editor.</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap"><kbd class="m3-kbd">Tab</kbd></td>
-              <td>Indent selection or expand an Emmet abbreviation inside the editor.</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap"><kbd class="m3-kbd">?</kbd></td>
-              <td>Open this Keyboard Shortcuts cheatsheet (outside editors &amp; inputs).</td>
-            </tr>
-            <tr>
-              <td class="whitespace-nowrap"><kbd class="m3-kbd">Esc</kbd></td>
-              <td>Close open modals, popovers, or menus.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <!-- Column 1: Workspace & IDE -->
+        <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle flex flex-col gap-2.5">
+          <div class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">Workspace &amp; IDE</div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Toggle sidebar</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">B</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Run code preview</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">R</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Run &amp; continue</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">Enter</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Reset starter code</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&#9003;</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Save progress</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">S</kbd></span>
+          </div>
+        </div>
 
-      <p class="mt-3 text-[11px] m3-text-muted">
-        * <span class="font-mono">Ctrl + &larr;/&rarr;</span> navigates steps when focus is outside editors and text fields so cursor word-jump still works inside code.
-      </p>
+        <!-- Column 2: Navigation & Editor -->
+        <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle flex flex-col gap-2.5">
+          <div class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">Navigation</div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Previous step</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&larr;</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Next step</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&rarr;</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Autocomplete</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">Space</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Expand Emmet</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd">Tab</kbd></span>
+          </div>
+          <div class="flex items-center justify-between gap-3 text-sm py-1">
+            <span>Shortcuts / Close</span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd">?</kbd><kbd class="m3-kbd">Esc</kbd></span>
+          </div>
+        </div>
+      </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>

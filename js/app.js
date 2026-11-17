@@ -28,8 +28,7 @@ import {
   generateCompactQrToken,
   verifyCompactQrToken,
   encodeBackupToken,
-  decodeBackupToken,
-  generateDemoKey
+  decodeBackupToken
 } from './crypto-key.js';
 
 const THEME_STORAGE_KEY = 'druba_web_theme';
@@ -43,6 +42,7 @@ const appState = {
   lessons: new Set(),
   activeIDE: null,
   cleanupSplitResizers: null,
+  cleanupRouteView: null,
   quizSession: null, // holds shuffled quiz state during active attempt
   shortcutContext: null // { onRunAdvance?: Function, onSave?: Function }
 };
@@ -265,12 +265,29 @@ function getNextRecommendedRoute() {
 // Theme Management
 // ============================================================================
 
-function applyTheme(theme) {
+function getSavedTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY);
+    return saved === 'm3-dark' || saved === 'm3-light' ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function getSystemTheme() {
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+    ? 'm3-dark'
+    : 'm3-light';
+}
+
+function applyTheme(theme, { persist = true } = {}) {
   const normalized = theme === 'm3-dark' ? 'm3-dark' : 'm3-light';
   document.documentElement.setAttribute('data-theme', normalized);
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, normalized);
-  } catch {}
+  if (persist) {
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, normalized);
+    } catch {}
+  }
   const icon = document.getElementById('theme-toggle-icon');
   if (icon) {
     icon.textContent = normalized === 'm3-dark' ? 'light_mode' : 'dark_mode';
@@ -288,11 +305,22 @@ function applyTheme(theme) {
 }
 
 function initTheme() {
-  let saved = 'm3-light';
-  try {
-    saved = localStorage.getItem(THEME_STORAGE_KEY) || 'm3-light';
-  } catch {}
-  applyTheme(saved);
+  const saved = getSavedTheme();
+  applyTheme(saved || getSystemTheme(), { persist: false });
+
+  if (window.matchMedia) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onSystemThemeChange = (e) => {
+      if (!getSavedTheme()) {
+        applyTheme(e.matches ? 'm3-dark' : 'm3-light', { persist: false });
+      }
+    };
+    if (typeof mq.addEventListener === 'function') {
+      mq.addEventListener('change', onSystemThemeChange);
+    } else if (typeof mq.addListener === 'function') {
+      mq.addListener(onSystemThemeChange);
+    }
+  }
 }
 
 // ============================================================================
@@ -800,6 +828,19 @@ function initRailState() {
   });
 }
 
+function toggleCourseSidebar() {
+  if (window.innerWidth >= 1024) {
+    const drawer = document.getElementById('nav-drawer');
+    const isCurrentlyCollapsed = drawer?.classList.contains('is-rail-collapsed');
+    setRailCollapsed(!isCurrentlyCollapsed);
+  } else {
+    const drawer = document.getElementById('nav-drawer');
+    const isOpen = drawer && !drawer.classList.contains('-translate-x-full');
+    if (isOpen) closeMobileDrawer();
+    else openMobileDrawer();
+  }
+}
+
 function renderSidebarAndProgress() {
   const prog = computeOverallProgress();
   const navBar = document.getElementById('nav-progress-bar');
@@ -1243,23 +1284,31 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
       </div>
 
       <!-- Anchored Bottom Lesson Footer inside Pane 1 -->
-      <footer class="border-t m3-border-subtle m3-surface-container-low px-4 py-2.5 flex items-center justify-between gap-2 shrink-0">
-        <div class="flex items-center gap-1.5">
-          ${currentStep > 1 ? `
-            <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-xs sm:btn-sm btn-ghost border m3-border-subtle rounded-full px-3" title="Previous Lesson (Alt+Left)">
-              Previous
+      <footer class="m3-mobile-sticky-bar lg:border-t lg:m3-border-subtle lg:m3-surface-container-low lg:px-4 lg:py-2.5 lg:flex lg:items-center lg:justify-between lg:gap-2 shrink-0">
+        <div class="m3-mobile-split-actions lg:contents">
+          <div class="m3-mobile-prev-wrap lg:flex lg:items-center lg:gap-1.5">
+            ${currentStep > 1 ? `
+              <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-sm m3-btn-tonal lg:btn-ghost lg:border lg:m3-border-subtle rounded-full px-3 gap-1.5" title="Previous Lesson (Alt+Left)">
+                <span class="material-symbols-outlined icon-18">arrow_back</span>
+                <span>Previous</span>
+              </a>
+            ` : `
+              <button type="button" id="lesson-prev-btn" disabled class="btn btn-sm m3-btn-tonal lg:hidden rounded-full px-3 gap-1.5 opacity-45" aria-disabled="true">
+                <span class="material-symbols-outlined icon-18">arrow_back</span>
+                <span>Previous</span>
+              </button>
+            `}
+            <a href="#/quiz/${mod.id}" class="hidden lg:inline-flex btn btn-sm btn-ghost rounded-full px-3" title="Jump to Module ${mod.id} Quiz">
+              Take Quiz
             </a>
-          ` : ''}
-          <a href="#/quiz/${mod.id}" class="btn btn-xs sm:btn-sm btn-ghost rounded-full px-3" title="Jump to Module ${mod.id} Quiz">
-            Take Quiz
-          </a>
-        </div>
+          </div>
 
-        <button id="lesson-complete-next-btn" type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full px-4 gap-1.5" title="${isLastLesson ? 'Start Quiz' : 'Next Lesson'} (Ctrl+Enter)">
-          <span>${isLastLesson ? 'Start Quiz' : 'Next'}</span>
-          <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
-          <span class="material-symbols-outlined" style="font-size:16px">arrow_forward</span>
-        </button>
+          <button id="lesson-complete-next-btn" type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-1.5" title="${isLastLesson ? 'Take Quiz' : 'Next Lesson'} (Ctrl+Enter)">
+            <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
+            <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+            <span class="material-symbols-outlined icon-18">arrow_forward</span>
+          </button>
+        </div>
       </footer>
     </div>
   `;
@@ -1512,6 +1561,25 @@ function renderModuleView(moduleId, lessonStep = 1) {
         await ide.runPreviewOnly();
         showToast('Code saved & preview updated', 'success');
       },
+      onShortcutRunPreview: async () => {
+        if (isHtmlCodeLesson) {
+          const currentHtml = ide.editors.html ? ide.editors.html.getValue() : (ide.code.html || '');
+          ide.code.html = currentHtml;
+          syncMiniChecks(currentHtml);
+        } else if (isJsCodeLesson && ide.editors.js) {
+          ide.code.js = ide.editors.js.getValue();
+        }
+        await ide.runPreviewOnly();
+        showToast('Preview updated.', 'info');
+      },
+      onShortcutReset: () => {
+        if (confirm('Reset this lesson back to starter code?')) {
+          ide.resetStarterCode();
+          if (isHtmlCodeLesson) syncMiniChecks(starterHtml);
+          showToast('Starter code restored.', 'info');
+        }
+      },
+      onShortcutToggleSidebar: () => toggleCourseSidebar(),
       onShortcutRunAdvance: async () => {
         if (isHtmlCodeLesson) {
           const currentHtml = ide.editors.html ? ide.editors.html.getValue() : (ide.code.html || '');
@@ -1535,6 +1603,8 @@ function renderModuleView(moduleId, lessonStep = 1) {
 
     appState.shortcutContext = {
       onRunAdvance: ide.onShortcutRunAdvance,
+      onRunPreview: ide.onShortcutRunPreview,
+      onReset: ide.onShortcutReset,
       onSave: ide.onShortcutSave
     };
 
@@ -1663,10 +1733,34 @@ function renderModuleView(moduleId, lessonStep = 1) {
                 ${renderLessonWidgetHtml(sec.widget)}
               </div>
             </div>
+            <!-- Mobile Sticky Action Bar inside Interactive Lab Tab -->
+            <div class="lg:hidden m3-mobile-sticky-bar shrink-0">
+              <div class="m3-mobile-split-actions">
+                ${currentStep > 1 ? `
+                  <a href="#/module/${mod.id}/lesson/${currentStep - 1}" class="btn m3-btn-tonal gap-1.5">
+                    <span class="material-symbols-outlined icon-18">arrow_back</span>
+                    <span>Previous</span>
+                  </a>
+                ` : `
+                  <button type="button" disabled class="btn m3-btn-tonal gap-1.5 opacity-45" aria-disabled="true">
+                    <span class="material-symbols-outlined icon-18">arrow_back</span>
+                    <span>Previous</span>
+                  </button>
+                `}
+                <button type="button" class="btn btn-primary gap-1.5 js-mobile-lesson-next">
+                  <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
+                  <span class="material-symbols-outlined icon-18">arrow_forward</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
     `;
+
+    view.querySelectorAll('.js-mobile-lesson-next').forEach((btn) => {
+      btn.addEventListener('click', () => document.getElementById('lesson-complete-next-btn')?.click());
+    });
 
     hydrateLessonWidget(view, sec.widget);
 
@@ -1933,7 +2027,7 @@ function drawQuizSession(mod, quiz, prevRecord) {
         }).join('')}
 
         ${!result ? `
-          <div class="flex justify-end gap-3 mt-2">
+          <div class="m3-quiz-mobile-bar flex justify-end gap-3 mt-2">
             <button type="submit" class="btn btn-primary btn-lg rounded-full px-8 gap-2" title="Submit Quiz (Ctrl+Enter)">
               <span class="material-symbols-outlined">task_alt</span>
               <span>Submit Quiz &amp; Check Mastery</span>
@@ -1941,7 +2035,7 @@ function drawQuizSession(mod, quiz, prevRecord) {
             </button>
           </div>
         ` : `
-          <div class="flex justify-end gap-3 mt-2">
+          <div class="m3-quiz-mobile-bar flex justify-end gap-3 mt-2">
             <button id="retake-quiz-bottom-btn" type="button" class="btn m3-btn-tonal rounded-full px-6 gap-2">
               <span class="material-symbols-outlined text-[18px]">shuffle</span>
               Retake Quiz
@@ -2203,12 +2297,12 @@ async function renderLabView(labId, isBonus = false) {
             <span>${formatDuration(savedRec?.activeTypingSeconds || 0)}</span>
           </div>
 
-          <button id="ide-reset-btn" type="button" class="btn btn-xs sm:btn-sm btn-ghost rounded-full gap-1" title="Reset Starter Code">
+          <button id="ide-reset-btn" type="button" class="btn btn-xs sm:btn-sm btn-ghost rounded-full gap-1" title="Reset Starter Code (Alt+Backspace)">
             <span class="material-symbols-outlined icon-18">restart_alt</span>
             <span class="hidden md:inline">Reset</span>
           </button>
 
-          <button id="ide-preview-btn" type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1" title="Run Preview (Ctrl+S)">
+          <button id="ide-preview-btn" type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1" title="Run Code Preview (Alt+R)">
             <span class="material-symbols-outlined icon-18">play_arrow</span>
             <span>Run</span>
           </button>
@@ -2333,10 +2427,10 @@ async function renderLabView(labId, isBonus = false) {
               <button id="editor-hint-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Autocomplete (Ctrl+Space)" aria-label="Autocomplete">
                 <span class="material-symbols-outlined icon-18">code_blocks</span>
               </button>
-              <button id="editor-reset-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Reset Starter Code" aria-label="Reset Starter Code">
+              <button id="editor-reset-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Reset Starter Code (Alt+Backspace)" aria-label="Reset Starter Code">
                 <span class="material-symbols-outlined icon-18">restart_alt</span>
               </button>
-              <button id="editor-run-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Run Preview" aria-label="Run Preview">
+              <button id="editor-run-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Run Code Preview (Alt+R)" aria-label="Run Preview">
                 <span class="material-symbols-outlined icon-18">play_arrow</span>
               </button>
             </div>
@@ -2396,6 +2490,27 @@ async function renderLabView(labId, isBonus = false) {
           </div>
         </div>
       </div>
+
+      <!-- Mobile Sticky Bottom Bar (< 1024px) -->
+      <div class="lg:hidden m3-mobile-sticky-bar shrink-0">
+        <div class="m3-mobile-split-actions">
+          <button id="mobile-ide-reset-btn" type="button" class="btn m3-btn-tonal gap-1.5">
+            <span class="material-symbols-outlined icon-18">restart_alt</span>
+            <span>Reset</span>
+          </button>
+          ${!isBonus ? `
+            <button id="mobile-ide-verify-btn" type="button" class="btn btn-primary gap-1.5">
+              <span class="material-symbols-outlined icon-18">verified</span>
+              <span>Run &amp; Check</span>
+            </button>
+          ` : `
+            <button id="mobile-ide-preview-btn" type="button" class="btn btn-primary gap-1.5">
+              <span class="material-symbols-outlined icon-18">play_arrow</span>
+              <span>Run</span>
+            </button>
+          `}
+        </div>
+      </div>
     </section>
   `;
 
@@ -2421,6 +2536,20 @@ async function renderLabView(labId, isBonus = false) {
       ctrl.runPreviewOnly();
       showToast('Code saved & preview updated', 'success');
     },
+    onShortcutRunPreview: (ctrl) => {
+      for (const tabKey of lab.tabs || []) {
+        if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
+      }
+      ctrl.runPreviewOnly();
+      showToast('Preview updated.', 'info');
+    },
+    onShortcutReset: (ctrl) => {
+      if (confirm('Reset this lab back to starter code?')) {
+        ctrl.resetStarterCode();
+        showToast('Starter code restored.', 'info');
+      }
+    },
+    onShortcutToggleSidebar: () => toggleCourseSidebar(),
     onShortcutRunAdvance: async (ctrl) => {
       for (const tabKey of lab.tabs || []) {
         if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
@@ -2483,6 +2612,8 @@ async function renderLabView(labId, isBonus = false) {
 
   appState.shortcutContext = {
     onRunAdvance: () => ide.onShortcutRunAdvance?.(ide),
+    onRunPreview: () => ide.onShortcutRunPreview?.(ide),
+    onReset: () => ide.onShortcutReset?.(ide),
     onSave: () => ide.onShortcutSave?.(ide)
   };
 
@@ -2530,11 +2661,14 @@ async function renderLabView(labId, isBonus = false) {
   };
 
   document.getElementById('ide-preview-btn')?.addEventListener('click', runPreviewAction);
+  document.getElementById('mobile-ide-preview-btn')?.addEventListener('click', runPreviewAction);
   document.getElementById('editor-run-icon-btn')?.addEventListener('click', runPreviewAction);
   document.getElementById('preview-refresh-btn')?.addEventListener('click', runPreviewAction);
   document.getElementById('ide-reset-btn')?.addEventListener('click', resetAction);
+  document.getElementById('mobile-ide-reset-btn')?.addEventListener('click', resetAction);
   document.getElementById('editor-reset-icon-btn')?.addEventListener('click', resetAction);
   document.getElementById('ide-verify-btn')?.addEventListener('click', () => ide.runAndVerify());
+  document.getElementById('mobile-ide-verify-btn')?.addEventListener('click', () => ide.runAndVerify());
 
   document.getElementById('editor-hint-btn')?.addEventListener('click', () => {
     const cm = ide.editors[ide.activeTab];
@@ -2651,111 +2785,128 @@ async function renderCertificateView() {
     year: 'numeric'
   });
 
-  const verifyHashHref = `#/verify?v=${qrInfo.token}`;
   const qrMinimalPayload = `?v=${qrInfo.token}`;
+  const safeRoll = (fullState.profile.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
 
   const view = document.getElementById('app-view');
   view.innerHTML = `
-    <section class="max-w-5xl mx-auto flex flex-col gap-5">
+    <section class="max-w-6xl mx-auto flex flex-col gap-5">
       <!-- Certificate Action Bar (Hidden in Print) -->
       <div class="m3-card rounded-3xl p-4 sm:p-5 border m3-border-subtle flex flex-wrap items-center justify-between gap-3 no-print">
         <div class="min-w-0">
           <h1 class="text-xl sm:text-2xl font-bold">Certificate of Completion</h1>
           <p class="text-xs sm:text-sm m3-text-muted">Printable A4 landscape credential with digitally signed QR verification.</p>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <button id="cert-print-btn" type="button" class="btn btn-sm sm:btn-md btn-primary rounded-full gap-1.5 px-5">
-            <span class="material-symbols-outlined icon-18">print</span>
-            <span>Print / Save PDF</span>
-          </button>
-          <button id="cert-copy-key-btn" type="button" class="btn btn-sm sm:btn-md m3-btn-tonal rounded-full gap-1.5">
+        <div class="flex flex-wrap items-center gap-2">
+          <div id="cert-export-dropdown" class="relative">
+            <button id="cert-export-btn" type="button" class="btn btn-sm sm:btn-md btn-primary rounded-full gap-1.5 px-4" aria-expanded="false" aria-haspopup="menu" aria-controls="cert-export-menu">
+              <span class="material-symbols-outlined icon-18">download</span>
+              <span>Export</span>
+              <span class="material-symbols-outlined icon-18">expand_more</span>
+            </button>
+            <div id="cert-export-menu" role="menu" class="cert-export-menu hidden">
+              <button id="cert-print-btn" type="button" role="menuitem" class="cert-export-item">
+                <span class="material-symbols-outlined icon-18 m3-text-primary">print</span>
+                <span>Print / Save as PDF</span>
+              </button>
+              <button id="cert-download-png-btn" type="button" role="menuitem" class="cert-export-item">
+                <span class="material-symbols-outlined icon-18 m3-text-primary">image</span>
+                <span>Download as PNG</span>
+              </button>
+              <button id="cert-download-jpg-btn" type="button" role="menuitem" class="cert-export-item">
+                <span class="material-symbols-outlined icon-18 m3-text-primary">photo</span>
+                <span>Download as JPG</span>
+              </button>
+            </div>
+          </div>
+          <button id="cert-copy-key-btn" type="button" class="btn btn-sm sm:btn-md m3-btn-tonal rounded-full gap-1.5 px-4">
             <span class="material-symbols-outlined icon-18">content_copy</span>
             <span>Copy Code Key</span>
           </button>
-          <a id="cert-test-verify-btn" href="${escapeHtml(verifyHashHref)}" class="btn btn-sm sm:btn-md btn-ghost border m3-border-subtle rounded-full gap-1.5">
-            <span class="material-symbols-outlined icon-18">open_in_new</span>
-            <span>Test Verify Page</span>
-          </a>
         </div>
       </div>
 
-      <!-- A4 Landscape Certificate Frame (297mm x 210mm) -->
-      <article class="m3-a4-certificate" aria-label="A4 Landscape Certificate of Completion">
-        <div class="m3-a4-certificate-inner">
-          <!-- Minimal Top Header -->
-          <header class="flex items-center justify-between gap-3">
-            <div class="inline-flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-[#146C43] inline-block" aria-hidden="true"></span>
-              <span class="text-base sm:text-lg font-bold tracking-tight text-[#111827]">druba.in</span>
+      <!-- Responsive A4 Landscape Stage (Scales 1122x794 Proportionally) -->
+      <div id="certificate-stage">
+        <article id="certificate-sheet" class="m3-a4-certificate" aria-label="A4 Landscape Certificate of Completion">
+          <div class="m3-a4-certificate-inner">
+            <!-- Minimal Top Header -->
+            <header style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:inline-flex;align-items:center;gap:10px;">
+                <span id="cert-brand-dot" style="display:block;width:10px;height:10px;border-radius:50%;background:#146C43;flex-shrink:0;" aria-hidden="true"></span>
+                <span style="display:inline-block;font-size:18px;font-weight:700;letter-spacing:-0.015em;color:#111827;line-height:1.2;">druba.in</span>
+              </div>
+              <div class="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#64748B]" style="line-height:1.2;">
+                CERTIFICATE OF COMPLETION
+              </div>
+            </header>
+
+            <!-- Centerpiece Typography -->
+            <div class="text-center flex flex-col items-center justify-center px-4" style="padding-top:18px;">
+              <h2 class="text-[40px] font-bold tracking-tight text-[#111827] leading-tight">
+                Congratulations
+              </h2>
+
+              <p class="text-[14px] text-[#4B5563] mt-3">This certifies that</p>
+
+              <div class="text-[36px] font-bold tracking-tight text-[#146C43] leading-tight mt-1.5">
+                ${escapeHtml(fullState.profile.fullName)}
+              </div>
+
+              <div class="font-mono text-[13px] font-medium text-[#4B5563] mt-1.5">
+                Student ID: ${escapeHtml(fullState.profile.rollNo)}
+              </div>
+
+              <p class="text-[14px] text-[#4B5563] max-w-[680px] mx-auto mt-4 leading-relaxed">
+                has successfully completed all lessons, graded assessments, and 8 hands-on front-end labs for
+              </p>
+
+              <div class="text-[21px] font-bold text-[#111827] mt-1.5">
+                Learning the Web with Basics of Vanilla Front-End Tools
+              </div>
+
+              <!-- Minimal Inline Summary (No Pill Boxes) -->
+              <div class="text-[13px] text-[#4B5563] mt-5 font-medium whitespace-nowrap" style="display:inline-flex;align-items:center;justify-content:center;line-height:1.4;">
+                <span>Quiz Score: <strong class="font-mono font-semibold text-[#111827]">${avgQuiz}%</strong></span>
+                <span class="cert-stat-divider" style="display:inline-block;width:1px;height:14px;background:#cbd5e1;flex-shrink:0;margin:0 14px;" aria-hidden="true"></span>
+                <span>Labs Completed: <strong class="font-mono font-semibold text-[#111827]">8 / 8</strong></span>
+                <span class="cert-stat-divider" style="display:inline-block;width:1px;height:14px;background:#cbd5e1;flex-shrink:0;margin:0 14px;" aria-hidden="true"></span>
+                <span>Issued: <strong class="font-mono font-semibold text-[#111827]">${escapeHtml(completionDate)}</strong></span>
+              </div>
             </div>
-            <div class="text-[11px] font-semibold tracking-[0.18em] uppercase text-[#64748B]">
-              CERTIFICATE OF COMPLETION
-            </div>
-          </header>
 
-          <!-- Centerpiece Typography -->
-          <div class="text-center flex flex-col items-center justify-center px-2">
-            <h2 class="text-2xl sm:text-3xl lg:text-[38px] font-bold tracking-tight text-[#111827] leading-tight">
-              Congratulations
-            </h2>
+            <!-- Bottom 3-Column Digitally Signed Footer -->
+            <footer class="cert-footer-grid">
+              <!-- Left Column: Digital Authority & Seal -->
+              <div style="display:flex;flex-direction:column;align-items:flex-start;text-align:left;">
+                <div style="display:inline-flex;align-items:center;gap:6px;margin-bottom:6px;">
+                  <svg id="cert-seal-svg" width="18" height="18" viewBox="0 0 24 24" fill="#146C43" style="display:block;flex-shrink:0;" aria-hidden="true">
+                    <path d="M23 12l-2.44-2.79.34-3.69-3.61-.82-1.89-3.2L12 2.96 8.6 1.5 6.71 4.69 3.1 5.5l.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.82L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.19 3.61-.82-.34-3.69L23 12zm-12.91 4.72l-3.8-3.81 1.48-1.48 2.32 2.33 5.85-5.87 1.48 1.48-7.33 7.35z"/>
+                  </svg>
+                  <span style="display:inline-block;color:#146C43;font-size:12px;font-weight:700;letter-spacing:-0.01em;line-height:1.4;">Digitally Signed Credential</span>
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#111827;line-height:1.4;">Issued by Drubajyoti Debnath</div>
+                <div style="font-size:11px;color:#64748B;line-height:1.3;">Course Author &middot; druba.in</div>
+              </div>
 
-            <p class="text-xs sm:text-sm text-[#4B5563] mt-3">This certifies that</p>
+              <!-- Center Column: High-Scannability QR Code (104x104) -->
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+                <div style="background:#ffffff;display:inline-flex;align-items:center;justify-content:center;">
+                  <canvas id="cert-qr-canvas" width="104" height="104" style="width:104px;height:104px;display:block;"></canvas>
+                  <div id="cert-qr-fallback" class="hidden"></div>
+                </div>
+                <div style="font-size:11px;font-weight:500;color:#64748B;line-height:1.3;">Scan to verify</div>
+              </div>
 
-            <div class="text-2xl sm:text-3xl lg:text-[34px] font-bold tracking-tight text-[#146C43] leading-tight mt-1.5">
-              ${escapeHtml(fullState.profile.fullName)}
-            </div>
-
-            <div class="font-mono text-xs sm:text-[13px] font-medium text-[#4B5563] mt-1">
-              Student ID: ${escapeHtml(fullState.profile.rollNo)}
-            </div>
-
-            <p class="text-xs sm:text-sm text-[#4B5563] max-w-lg mx-auto mt-3 leading-relaxed">
-              has successfully completed all lessons, graded assessments, and 8 hands-on front-end labs for
-            </p>
-
-            <div class="text-base sm:text-lg lg:text-[20px] font-bold text-[#111827] mt-1.5">
-              Learning the Web with Basics of Vanilla Front-End Tools
-            </div>
-
-            <!-- Minimal Inline Summary (No Pill Boxes) -->
-            <div class="text-xs sm:text-[13px] text-[#4B5563] mt-4 font-medium flex flex-wrap items-center justify-center gap-y-1">
-              <span>Quiz Score: <strong class="font-mono font-semibold text-[#111827]">${avgQuiz}%</strong></span>
-              <span class="mx-3 text-[#CBD5E1]" aria-hidden="true">|</span>
-              <span>Labs Completed: <strong class="font-mono font-semibold text-[#111827]">8 / 8</strong></span>
-              <span class="mx-3 text-[#CBD5E1]" aria-hidden="true">|</span>
-              <span>Issued: <strong class="font-mono font-semibold text-[#111827]">${escapeHtml(completionDate)}</strong></span>
-            </div>
+              <!-- Right Column: Clean Credential ID -->
+              <div class="font-mono" style="display:flex;flex-direction:column;align-items:flex-end;text-align:right;font-size:11px;">
+                <div style="font-weight:600;color:#111827;line-height:1.4;">ID: ${escapeHtml(qrInfo.verifyId)}</div>
+                <div style="color:#4B5563;line-height:1.3;">Verify at: druba.in/learn/#/verify</div>
+              </div>
+            </footer>
           </div>
-
-          <!-- Bottom 3-Column Digitally Signed Footer (No Divider Line, No Handwritten Signature) -->
-          <footer class="grid grid-cols-1 md:grid-cols-3 items-end gap-4 pt-2">
-            <!-- Left Column: Digital Authority & Seal -->
-            <div class="flex flex-col items-center md:items-start text-center md:text-left">
-              <div class="inline-flex items-center gap-1.5 text-[#146C43] text-xs font-bold tracking-tight mb-1">
-                <span class="material-symbols-outlined filled" style="font-size:16px;color:#146C43;">verified</span>
-                <span>Digitally Signed Credential</span>
-              </div>
-              <div class="text-xs font-semibold text-[#111827] leading-snug">Issued by Drubajyoti Debnath</div>
-              <div class="text-[11px] text-[#64748B] leading-snug">Course Author &middot; druba.in</div>
-            </div>
-
-            <!-- Center Column: High-Scannability QR Code (104x104, 8px white quiet zone) -->
-            <div class="flex flex-col items-center justify-center">
-              <div class="bg-white inline-flex items-center justify-center" style="padding:8px;">
-                <canvas id="cert-qr-canvas" width="104" height="104" style="width:104px;height:104px;display:block;"></canvas>
-                <div id="cert-qr-fallback" class="hidden"></div>
-              </div>
-              <div class="text-[10.5px] font-medium text-[#64748B] mt-1">Scan to verify</div>
-            </div>
-
-            <!-- Right Column: Clean Credential ID (2 lines in JetBrains Mono) -->
-            <div class="flex flex-col items-center md:items-end text-center md:text-right font-mono text-[11px] leading-relaxed">
-              <div class="font-semibold text-[#111827]">ID: ${escapeHtml(qrInfo.verifyId)}</div>
-              <div class="text-[#4B5563]">Verify at: druba.in/learn/#/verify</div>
-            </div>
-          </footer>
-        </div>
-      </article>
+        </article>
+      </div>
 
       <!-- Collapsible Certificate Verification Code Drawer (Hidden in Print) -->
       <details class="m3-accordion m3-surface-container-lowest rounded-3xl border m3-border-subtle no-print">
@@ -2806,8 +2957,151 @@ async function renderCertificateView() {
     qrFallback.innerHTML = buildOfflineQrFallbackSvg(qrInfo.verifyId);
   }
 
-  document.getElementById('cert-print-btn')?.addEventListener('click', () => window.print());
+  // Proportional A4 landscape scaling on any viewport
+  const stage = document.getElementById('certificate-stage');
+  const sheet = document.getElementById('certificate-sheet');
+  const updateCertificateScale = () => {
+    if (!stage || !sheet) return;
+    const avail = stage.clientWidth;
+    if (!avail) return;
+    const scale = Math.min(1, avail / 1122);
+    const offsetX = Math.max(0, (avail - 1122 * scale) / 2);
+    sheet.style.transform = `translateX(${offsetX}px) scale(${scale})`;
+    stage.style.height = `${Math.round(794 * scale)}px`;
+  };
+  updateCertificateScale();
+
+  let resizeObserver = null;
+  if (typeof ResizeObserver === 'function' && stage) {
+    resizeObserver = new ResizeObserver(updateCertificateScale);
+    resizeObserver.observe(stage);
+  }
+  window.addEventListener('resize', updateCertificateScale);
+
+  // Export dropdown menu controller
+  const exportBtn = document.getElementById('cert-export-btn');
+  const exportMenu = document.getElementById('cert-export-menu');
+  const closeExportMenu = () => {
+    exportMenu?.classList.add('hidden');
+    exportBtn?.setAttribute('aria-expanded', 'false');
+  };
+  const onDocClick = (e) => {
+    if (exportMenu && !exportMenu.classList.contains('hidden') && !e.target.closest('#cert-export-dropdown')) {
+      closeExportMenu();
+    }
+  };
+  const onDocKeydown = (e) => {
+    if (e.key === 'Escape' && exportMenu && !exportMenu.classList.contains('hidden')) {
+      closeExportMenu();
+      exportBtn?.focus();
+    }
+  };
+  exportBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = exportMenu?.classList.contains('hidden');
+    exportMenu?.classList.toggle('hidden', !willOpen);
+    exportBtn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  });
+  document.addEventListener('click', onDocClick);
+  document.addEventListener('keydown', onDocKeydown);
+
+  appState.cleanupRouteView = () => {
+    resizeObserver?.disconnect();
+    window.removeEventListener('resize', updateCertificateScale);
+    document.removeEventListener('click', onDocClick);
+    document.removeEventListener('keydown', onDocKeydown);
+  };
+
+  // Image export helper (PNG / JPG at full 1122x794 @ 2x retina via off-screen clone)
+  const exportCertificateImage = async (format, btn) => {
+    if (typeof window.html2canvas !== 'function') {
+      showToast('Image export library is still loading or unavailable offline. Use Print / Save PDF instead.', 'error');
+      return;
+    }
+    if (!sheet) return;
+    const origDisabled = btn.disabled;
+    btn.disabled = true;
+    let offscreenHost = null;
+    try {
+      if (document.fonts && document.fonts.ready) {
+        await document.fonts.ready;
+      }
+      offscreenHost = document.createElement('div');
+      offscreenHost.style.cssText = 'position:fixed;left:-99999px;top:0;width:1122px;height:794px;overflow:visible;pointer-events:none;z-index:-1;';
+      const clonedSheet = sheet.cloneNode(true);
+      clonedSheet.style.transform = 'none';
+      clonedSheet.style.margin = '0';
+      clonedSheet.style.boxShadow = 'none';
+
+      // Preserve QR canvas bitmap inside cloned node
+      const srcQr = sheet.querySelector('#cert-qr-canvas');
+      const dstQr = clonedSheet.querySelector('#cert-qr-canvas');
+      if (srcQr && dstQr && !srcQr.classList.contains('hidden')) {
+        const ctx = dstQr.getContext('2d');
+        if (ctx) ctx.drawImage(srcQr, 0, 0);
+      }
+
+      offscreenHost.appendChild(clonedSheet);
+      document.body.appendChild(offscreenHost);
+
+      const canvas = await window.html2canvas(clonedSheet, {
+        scale: 2,
+        width: 1122,
+        height: 794,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        logging: false,
+        onclone: (clonedDoc) => {
+          clonedDoc.querySelectorAll('#cert-brand-dot').forEach((dot) => {
+            if (dot.parentElement) dot.parentElement.style.alignItems = 'flex-start';
+            dot.style.marginTop = '15px';
+          });
+          clonedDoc.querySelectorAll('.cert-stat-divider').forEach((el) => {
+            if (el.parentElement) el.parentElement.style.alignItems = 'flex-start';
+            el.style.marginTop = '6px';
+          });
+          clonedDoc.querySelectorAll('#cert-seal-svg').forEach((seal) => {
+            if (seal.parentElement) seal.parentElement.style.alignItems = 'flex-start';
+            seal.style.marginTop = '7px';
+          });
+        }
+      });
+      const ext = format === 'jpg' ? 'jpg' : 'png';
+      const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const filename = `${safeRoll}_druba-web_Certificate.${ext}`;
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, mime, 0.95));
+      if (!blob) throw new Error('Could not encode image.');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast(`Downloaded ${filename}`, 'success');
+    } catch (err) {
+      showToast(`Image export failed: ${err.message}`, 'error');
+    } finally {
+      offscreenHost?.remove();
+      btn.disabled = origDisabled;
+    }
+  };
+
+  document.getElementById('cert-print-btn')?.addEventListener('click', () => {
+    closeExportMenu();
+    window.print();
+  });
+  document.getElementById('cert-download-png-btn')?.addEventListener('click', () => {
+    closeExportMenu();
+    if (exportBtn) exportCertificateImage('png', exportBtn);
+  });
+  document.getElementById('cert-download-jpg-btn')?.addEventListener('click', () => {
+    closeExportMenu();
+    if (exportBtn) exportCertificateImage('jpg', exportBtn);
+  });
   document.getElementById('cert-copy-key-btn')?.addEventListener('click', () => {
+    closeExportMenu();
     copyToClipboard(generated.key, 'Certificate Verification Code copied.');
   });
 }
@@ -2822,49 +3116,154 @@ async function renderVerifyView(queryParams = null) {
   const keyParam = queryParams ? queryParams.get('key') : null;
 
   view.innerHTML = `
-    <section class="flex flex-col gap-6 max-w-5xl mx-auto">
-      <div id="verify-qr-container"></div>
+    <section class="flex flex-col gap-5 max-w-5xl mx-auto">
+      <!-- Verified Results Area (Takes Center Stage First) -->
+      <div id="verify-results-container" class="flex flex-col gap-5"></div>
 
-      <div class="m3-card rounded-3xl p-6 border m3-border-subtle">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span class="badge m3-tonal-badge font-mono text-xs mb-1.5">Certificate Verification</span>
-            <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <span class="material-symbols-outlined icon-24 m3-text-primary">verified_user</span>
-              <span>Check a Certificate</span>
-            </h1>
-            <p class="text-sm m3-text-muted mt-1">
-              Scan a certificate QR code to verify it automatically, or paste a Certificate Verification Code below to check authenticity, quiz scores, and submitted lab code.
-            </p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <button id="verify-demo-valid-btn" type="button" class="btn btn-xs m3-btn-tonal rounded-full">Load Sample Valid Code</button>
-            <button id="verify-demo-tamper-btn" type="button" class="btn btn-xs btn-outline btn-error rounded-full">Load Sample Altered Code</button>
-          </div>
-        </div>
+      <!-- Check a Certificate Card (Auto-Collapses When Results Are Shown) -->
+      <div id="verify-input-card" class="m3-card rounded-3xl border m3-border-subtle overflow-hidden">
+        <!-- Collapsed Single-Row Header -->
+        <button id="verify-expand-bar" type="button" class="hidden w-full px-5 py-4 flex items-center justify-between gap-3 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" aria-expanded="false" aria-controls="verify-input-body">
+          <span class="flex items-center gap-2.5 font-semibold text-sm sm:text-base">
+            <span class="material-symbols-outlined icon-20 m3-text-primary">verified_user</span>
+            <span>Check Another Certificate</span>
+          </span>
+          <span class="material-symbols-outlined icon-20 m3-text-muted">expand_more</span>
+        </button>
 
-        <div class="mt-4">
-          <textarea id="verify-key-input" rows="3" placeholder="Paste a Certificate Verification Code here to check a certificate and view submitted lab code..." class="textarea textarea-bordered w-full font-mono text-xs rounded-2xl"></textarea>
-          <div class="flex flex-wrap gap-2 mt-3 justify-end">
-            <button id="verify-clear-btn" type="button" class="btn btn-sm btn-ghost rounded-full">Clear</button>
-            <button id="verify-inspect-btn" type="button" class="btn btn-sm btn-primary rounded-full px-6 gap-1.5">
-              <span class="material-symbols-outlined icon-18">search_check</span>
-              <span>Check Certificate</span>
+        <!-- Expanded Scanner + Paste Body -->
+        <div id="verify-input-body" class="p-5 sm:p-6">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+                <span class="material-symbols-outlined icon-24 m3-text-primary">verified_user</span>
+                <span>Check a Certificate</span>
+              </h1>
+              <p class="text-sm m3-text-muted mt-1">
+                Scan a certificate QR code with your camera, or paste a Verification Code or URL below.
+              </p>
+            </div>
+            <button id="verify-scan-qr-btn" type="button" class="btn btn-sm sm:btn-md m3-btn-tonal rounded-full gap-2 shrink-0">
+              <span class="material-symbols-outlined icon-20">qr_code_scanner</span>
+              <span>Scan QR with Camera</span>
             </button>
+          </div>
+
+          <!-- Inline Camera QR Viewfinder -->
+          <div id="verify-scanner-panel" class="hidden mt-4 p-4 rounded-2xl m3-surface-container-low border m3-border-subtle flex flex-col items-center gap-3">
+            <div class="verify-scanner-frame">
+              <video id="verify-scanner-video" class="verify-scanner-video" playsinline muted autoplay></video>
+              <div class="verify-scanner-reticle" aria-hidden="true"></div>
+            </div>
+            <p id="verify-scanner-status" class="text-xs m3-text-muted text-center" aria-live="polite">
+              Point your camera at the certificate QR code...
+            </p>
+            <button id="verify-stop-camera-btn" type="button" class="btn btn-sm btn-outline rounded-full gap-1.5">
+              <span class="material-symbols-outlined icon-18">videocam_off</span>
+              <span>Stop Camera</span>
+            </button>
+          </div>
+
+          <!-- Single-Box Verification Code / URL Paste Input -->
+          <div class="mt-4">
+            <textarea id="verify-key-input" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste Verification Code or certificate URL (?v=... or ?key=...)" class="textarea textarea-bordered w-full font-mono text-xs rounded-2xl"></textarea>
+            <div class="flex flex-wrap gap-2 mt-3 justify-end">
+              <button id="verify-clear-btn" type="button" class="btn btn-sm btn-ghost rounded-full">Clear</button>
+              <button id="verify-inspect-btn" type="button" class="btn btn-sm btn-primary rounded-full px-6 gap-1.5">
+                <span class="material-symbols-outlined icon-18">search_check</span>
+                <span>Check Certificate</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
-
-      <div id="verify-output-container"></div>
     </section>
   `;
 
-  const renderQrResult = async (container, tokenStr) => {
+  const resultsContainer = document.getElementById('verify-results-container');
+  const expandBar = document.getElementById('verify-expand-bar');
+  const inputBody = document.getElementById('verify-input-body');
+  const scannerPanel = document.getElementById('verify-scanner-panel');
+  const scannerVideo = document.getElementById('verify-scanner-video');
+  const scannerStatus = document.getElementById('verify-scanner-status');
+  const scanBtn = document.getElementById('verify-scan-qr-btn');
+
+  const setInputCollapsed = (collapsed) => {
+    if (!expandBar || !inputBody) return;
+    expandBar.classList.toggle('hidden', !collapsed);
+    expandBar.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    inputBody.classList.toggle('hidden', collapsed);
+  };
+
+  expandBar?.addEventListener('click', () => {
+    setInputCollapsed(false);
+    document.getElementById('verify-key-input')?.focus();
+  });
+
+  // Camera QR Scanner state
+  let mediaStream = null;
+  let scanRafId = null;
+  let scanCanvas = null;
+  let scanCtx = null;
+  let barcodeDetector = null;
+  let lastDecodeAt = 0;
+
+  const stopCamera = () => {
+    if (scanRafId !== null) {
+      cancelAnimationFrame(scanRafId);
+      scanRafId = null;
+    }
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((t) => t.stop());
+      mediaStream = null;
+    }
+    if (scannerVideo) {
+      scannerVideo.srcObject = null;
+    }
+    scannerPanel?.classList.add('hidden');
+    if (scanBtn) scanBtn.disabled = false;
+  };
+
+  appState.cleanupRouteView = stopCamera;
+
+  const extractVerificationPayload = (rawText) => {
+    const trimmed = String(rawText || '').trim();
+    if (!trimmed) return { type: 'empty', value: '' };
+
+    // Extract ?v= or ?key= from full URLs, hash URLs, or bare query strings
+    const extractParam = (queryStr) => {
+      try {
+        const params = new URLSearchParams(queryStr);
+        if (params.get('v')) return { type: 'qr', value: params.get('v') };
+        if (params.get('key')) return { type: 'key', value: params.get('key') };
+      } catch {}
+      return null;
+    };
+
+    if (trimmed.startsWith('?')) {
+      const hit = extractParam(trimmed.slice(1));
+      if (hit) return hit;
+    }
+
+    const qIdx = trimmed.indexOf('?');
+    if (qIdx !== -1) {
+      const hit = extractParam(trimmed.slice(qIdx + 1).split('#')[0]);
+      if (hit) return hit;
+    }
+
+    if (trimmed.startsWith('druba-web-v1.') || trimmed.startsWith('druba-web-v1r.')) {
+      return { type: 'key', value: trimmed };
+    }
+
+    return { type: 'qr', value: trimmed };
+  };
+
+  const renderQrResult = async (tokenStr) => {
     const qrRes = await verifyCompactQrToken(tokenStr);
     if (qrRes.valid && qrRes.payload) {
       const p = qrRes.payload;
       const scores = Array.isArray(p.quizScores) ? p.quizScores : [];
-      container.innerHTML = `
+      resultsContainer.innerHTML = `
         <div class="m3-surface-container-lowest rounded-3xl p-6 border-2 border-success shadow-sm">
           <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b m3-border-subtle">
             <div class="flex items-center gap-3.5">
@@ -2914,7 +3313,7 @@ async function renderVerifyView(queryParams = null) {
         </div>
       `;
     } else {
-      container.innerHTML = `
+      resultsContainer.innerHTML = `
         <div class="rounded-3xl p-6 border-2 border-error m3-error-container flex items-center justify-between flex-wrap gap-4">
           <div class="flex items-center gap-3.5">
             <span class="material-symbols-outlined icon-24">gpp_bad</span>
@@ -2927,24 +3326,33 @@ async function renderVerifyView(queryParams = null) {
         </div>
       `;
     }
+    setInputCollapsed(true);
   };
 
-  if (qrParam) {
-    await renderQrResult(document.getElementById('verify-qr-container'), qrParam);
-  }
-
-  const runInspection = async (keyText) => {
-    const out = document.getElementById('verify-output-container');
-    const trimmed = String(keyText || '').trim();
-    if (trimmed.includes('?v=')) {
-      await renderQrResult(out, trimmed);
+  const runInspection = async (rawInput) => {
+    const parsed = extractVerificationPayload(rawInput);
+    if (parsed.type === 'empty') {
+      resultsContainer.innerHTML = `
+        <div class="rounded-3xl p-5 border-2 border-error m3-error-container flex items-center gap-3">
+          <span class="material-symbols-outlined text-[30px]">gpp_bad</span>
+          <div>
+            <div class="font-bold">Verification Code Required</div>
+            <div class="text-sm">Scan a certificate QR code or paste a Verification Code to check.</div>
+          </div>
+        </div>
+      `;
       return;
     }
 
-    const res = await verifyCompletionKey(keyText);
+    if (parsed.type === 'qr') {
+      await renderQrResult(parsed.value);
+      return;
+    }
+
+    const res = await verifyCompletionKey(parsed.value);
 
     if (!res.payload) {
-      out.innerHTML = `
+      resultsContainer.innerHTML = `
         <div class="rounded-3xl p-5 border-2 border-error m3-error-container flex items-center gap-3">
           <span class="material-symbols-outlined text-[30px]">gpp_bad</span>
           <div>
@@ -2953,6 +3361,7 @@ async function renderVerifyView(queryParams = null) {
           </div>
         </div>
       `;
+      setInputCollapsed(true);
       return;
     }
 
@@ -2962,7 +3371,7 @@ async function renderVerifyView(queryParams = null) {
       : 0;
     const labsList = p.practicals || [];
 
-    out.innerHTML = `
+    resultsContainer.innerHTML = `
       <div class="flex flex-col gap-5">
         <!-- Verification Status Banner -->
         <div class="rounded-3xl p-5 border-2 ${res.valid ? 'border-success m3-success-container' : 'border-error m3-error-container'} flex flex-wrap items-center justify-between gap-4">
@@ -3084,12 +3493,14 @@ async function renderVerifyView(queryParams = null) {
       </div>
     `;
 
+    setInputCollapsed(true);
+
     const showInspectLab = (labId) => {
       const labMeta = getLabById(labId);
       const prac = labsList.find((item) => Number(item.labId) === Number(labId)) || {
         labId, htmlCode: '', cssCode: '', jsCode: '', activeTypingSeconds: 0, pasteCount: 0
       };
-      out.querySelectorAll('[data-inspect-lab]').forEach((b) => {
+      resultsContainer.querySelectorAll('[data-inspect-lab]').forEach((b) => {
         const active = Number(b.dataset.inspectLab) === Number(labId);
         b.classList.toggle('tab-active', active);
         b.classList.toggle('font-bold', active);
@@ -3133,31 +3544,123 @@ async function renderVerifyView(queryParams = null) {
       }
     };
 
-    out.querySelectorAll('[data-inspect-lab]').forEach((btn) => {
+    resultsContainer.querySelectorAll('[data-inspect-lab]').forEach((btn) => {
       btn.addEventListener('click', () => showInspectLab(btn.dataset.inspectLab));
     });
     showInspectLab(1);
   };
 
+  // Start WebRTC camera QR scanner (BarcodeDetector with jsQR fallback)
+  const startCamera = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      showToast('Camera access is not supported in this browser.', 'error');
+      return;
+    }
+    stopCamera();
+    if (scanBtn) scanBtn.disabled = true;
+    scannerPanel?.classList.remove('hidden');
+    if (scannerStatus) scannerStatus.textContent = 'Starting camera...';
+
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false
+      });
+      if (!scannerVideo) {
+        stopCamera();
+        return;
+      }
+      scannerVideo.srcObject = mediaStream;
+      await scannerVideo.play();
+
+      if ('BarcodeDetector' in window) {
+        try {
+          const formats = typeof window.BarcodeDetector.getSupportedFormats === 'function'
+            ? await window.BarcodeDetector.getSupportedFormats()
+            : ['qr_code'];
+          if (formats.includes('qr_code')) {
+            barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+          }
+        } catch {
+          barcodeDetector = null;
+        }
+      }
+
+      if (scannerStatus) {
+        scannerStatus.textContent = 'Point your camera at the certificate QR code...';
+      }
+
+      const decodeFrame = async (now) => {
+        if (!mediaStream || !scannerVideo) return;
+        if (now - lastDecodeAt >= 120 && scannerVideo.readyState >= 2 && scannerVideo.videoWidth > 0) {
+          lastDecodeAt = now;
+          let detectedRaw = '';
+
+          if (barcodeDetector) {
+            try {
+              const codes = await barcodeDetector.detect(scannerVideo);
+              if (codes && codes.length && codes[0].rawValue) {
+                detectedRaw = codes[0].rawValue;
+              }
+            } catch {
+              barcodeDetector = null;
+            }
+          }
+
+          if (!detectedRaw && typeof window.jsQR === 'function') {
+            if (!scanCanvas) {
+              scanCanvas = document.createElement('canvas');
+              scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+            }
+            const w = scannerVideo.videoWidth;
+            const h = scannerVideo.videoHeight;
+            if (scanCanvas.width !== w || scanCanvas.height !== h) {
+              scanCanvas.width = w;
+              scanCanvas.height = h;
+            }
+            scanCtx.drawImage(scannerVideo, 0, 0, w, h);
+            const imgData = scanCtx.getImageData(0, 0, w, h);
+            const code = window.jsQR(imgData.data, w, h, { inversionAttempts: 'dontInvert' });
+            if (code && code.data) {
+              detectedRaw = code.data;
+            }
+          }
+
+          if (detectedRaw) {
+            stopCamera();
+            const keyInput = document.getElementById('verify-key-input');
+            if (keyInput) keyInput.value = detectedRaw;
+            await runInspection(detectedRaw);
+            return;
+          }
+        }
+        scanRafId = requestAnimationFrame(decodeFrame);
+      };
+
+      scanRafId = requestAnimationFrame(decodeFrame);
+    } catch (err) {
+      stopCamera();
+      showToast(`Could not access camera: ${err.message}`, 'error');
+    }
+  };
+
+  scanBtn?.addEventListener('click', startCamera);
+  document.getElementById('verify-stop-camera-btn')?.addEventListener('click', stopCamera);
+
   document.getElementById('verify-inspect-btn')?.addEventListener('click', () => {
+    stopCamera();
     runInspection(document.getElementById('verify-key-input').value);
   });
   document.getElementById('verify-clear-btn')?.addEventListener('click', () => {
+    stopCamera();
     document.getElementById('verify-key-input').value = '';
-    document.getElementById('verify-output-container').innerHTML = '';
-  });
-  document.getElementById('verify-demo-valid-btn')?.addEventListener('click', async () => {
-    const key = await generateDemoKey(false);
-    document.getElementById('verify-key-input').value = key;
-    await runInspection(key);
-  });
-  document.getElementById('verify-demo-tamper-btn')?.addEventListener('click', async () => {
-    const key = await generateDemoKey(true);
-    document.getElementById('verify-key-input').value = key;
-    await runInspection(key);
+    resultsContainer.innerHTML = '';
+    setInputCollapsed(false);
   });
 
-  if (keyParam) {
+  if (qrParam) {
+    await renderQrResult(qrParam);
+  } else if (keyParam) {
     const keyInput = document.getElementById('verify-key-input');
     if (keyInput) keyInput.value = keyParam;
     await runInspection(keyParam);
@@ -3377,9 +3880,27 @@ function isEditableTarget(target) {
   return false;
 }
 
+function syncShortcutPlatformLabels() {
+  const platform = navigator.userAgentData?.platform || navigator.platform || '';
+  const isMac = /mac|iphone|ipad|ipod/i.test(platform);
+  const modLabel = isMac ? '⌘' : 'Ctrl';
+  const altLabel = isMac ? '⌥' : 'Alt';
+  document.querySelectorAll('[data-mod-key]').forEach((el) => {
+    el.textContent = modLabel;
+  });
+  document.querySelectorAll('[data-alt-key]').forEach((el) => {
+    el.textContent = altLabel;
+  });
+  const railBtn = document.getElementById('rail-toggle-btn');
+  if (railBtn) railBtn.title = `Toggle Sidebar (${modLabel}+B)`;
+}
+
 function initKeyboardShortcuts() {
+  syncShortcutPlatformLabels();
+
   window.addEventListener('keydown', (e) => {
     const key = e.key;
+    const lower = key.toLowerCase();
     const modKey = e.ctrlKey || e.metaKey;
     const inEditor = Boolean(e.target instanceof Element && e.target.closest('.CodeMirror, .ide-fallback-textarea'));
     const inEditable = isEditableTarget(e.target);
@@ -3414,8 +3935,36 @@ function initKeyboardShortcuts() {
       return;
     }
 
-    // 3. Ctrl+S / Cmd+S (outside CodeMirror/fallback textarea which handle it natively)
-    if (modKey && !e.altKey && (key === 's' || key === 'S')) {
+    // 3. Ctrl+B / Cmd+B — Toggle Left Sidebar (outside CodeMirror/fallback textarea which handle it via extraKeys)
+    if (modKey && !e.altKey && !e.shiftKey && lower === 'b') {
+      if (inEditor) return;
+      e.preventDefault();
+      toggleCourseSidebar();
+      return;
+    }
+
+    // 4. Alt+R or Ctrl+Shift+R — Run Code Preview (without advancing)
+    if ((e.altKey && !modKey && !e.shiftKey && lower === 'r') || (modKey && e.shiftKey && !e.altKey && lower === 'r')) {
+      if (inEditor) return;
+      if (appState.shortcutContext?.onRunPreview) {
+        e.preventDefault();
+        appState.shortcutContext.onRunPreview();
+      }
+      return;
+    }
+
+    // 5. Alt+Backspace or Ctrl+Shift+X — Reset Starter Code
+    if ((e.altKey && !modKey && !e.shiftKey && key === 'Backspace') || (modKey && e.shiftKey && !e.altKey && lower === 'x')) {
+      if (inEditor) return;
+      if (appState.shortcutContext?.onReset) {
+        e.preventDefault();
+        appState.shortcutContext.onReset();
+      }
+      return;
+    }
+
+    // 6. Ctrl+S / Cmd+S (outside CodeMirror/fallback textarea which handle it via extraKeys)
+    if (modKey && !e.altKey && lower === 's') {
       if (inEditor) return;
       e.preventDefault();
       if (appState.shortcutContext?.onSave) {
@@ -3426,7 +3975,7 @@ function initKeyboardShortcuts() {
       return;
     }
 
-    // 4. Ctrl+Enter / Cmd+Enter (outside CodeMirror/fallback textarea which handle it natively)
+    // 7. Ctrl+Enter / Cmd+Enter (outside CodeMirror/fallback textarea which handle it via extraKeys)
     if (modKey && !e.altKey && key === 'Enter') {
       if (inEditor) return;
       if (appState.shortcutContext?.onRunAdvance) {
@@ -3436,15 +3985,8 @@ function initKeyboardShortcuts() {
       return;
     }
 
-    // 5. Alt+ArrowLeft / Alt+ArrowRight (works everywhere, including CodeMirror)
+    // 8. Alt+ArrowLeft / Alt+ArrowRight (works everywhere without colliding with Ctrl+Arrow cursor jump)
     if (e.altKey && !modKey && !e.shiftKey && (key === 'ArrowRight' || key === 'ArrowLeft')) {
-      e.preventDefault();
-      navigateCourseStep(key === 'ArrowRight' ? 1 : -1);
-      return;
-    }
-
-    // 6. Ctrl+ArrowLeft / Ctrl+ArrowRight (only outside text inputs & CodeMirror)
-    if (e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !inEditable && (key === 'ArrowRight' || key === 'ArrowLeft')) {
       e.preventDefault();
       navigateCourseStep(key === 'ArrowRight' ? 1 : -1);
     }
@@ -3456,6 +3998,10 @@ async function handleRoute() {
   if (appState.cleanupSplitResizers) {
     appState.cleanupSplitResizers();
     appState.cleanupSplitResizers = null;
+  }
+  if (appState.cleanupRouteView) {
+    appState.cleanupRouteView();
+    appState.cleanupRouteView = null;
   }
   if (appState.activeIDE) {
     appState.activeIDE.destroy();
