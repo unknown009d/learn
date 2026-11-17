@@ -1,0 +1,943 @@
+/* ==========================================================================
+   Material Design 3 (Material You) Engineering Workspace Theme
+   Course: Learning the Web with Basics of Vanilla Front-End Tools (druba.in)
+   ========================================================================== */
+
+:root,
+[data-theme="m3-light"] {
+  color-scheme: light;
+
+  /* Material Design 3 Tonal Surface Palette (Light) */
+  --m3-surface: #f6faf6;
+  --m3-surface-dim: #e7ede7;
+  --m3-surface-container-lowest: #ffffff;
+  --m3-surface-container-low: #eff5ef;
+  --m3-surface-container: #e9efe9;
+  --m3-surface-container-high: #e2e9e3;
+  --m3-surface-container-highest: #dce3dd;
+  --m3-inverse-surface: #1f2937;
+  --m3-inverse-on-surface: #f9fafb;
+
+  --surface-container-high: var(--m3-surface-container-high);
+  --surface-container-highest: var(--m3-surface-container-highest);
+  --outline-variant: var(--m3-outline-variant);
+
+  --m3-primary: #0e7a3a;
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #b9f3c6;
+  --m3-on-primary-container: #00210b;
+
+  --m3-secondary: #4e6353;
+  --m3-on-secondary: #ffffff;
+  --m3-secondary-container: #d1e8d4;
+  --m3-on-secondary-container: #0c1f13;
+
+  --m3-tertiary: #39656d;
+  --m3-tertiary-container: #bdeaf4;
+
+  --m3-error: #ba1a1a;
+  --m3-error-container: #ffdad6;
+  --m3-on-error-container: #410002;
+
+  --m3-warning: #8f5400;
+  --m3-warning-container: #ffddb8;
+
+  --m3-text: #171d19;
+  --m3-text-muted: #414942;
+  --m3-outline: #717971;
+  --m3-outline-variant: #c1c9bf;
+
+  --m3-code-bg: #122119;
+  --m3-code-fg: #e2f3e8;
+
+  /* DaisyUI 4 OKLCH Tokens & Surface Fallbacks (Light) */
+  --p: 51% 0.145 148;
+  --pc: 100% 0 0;
+  --s: 46% 0.04 145;
+  --sc: 100% 0 0;
+  --a: 48% 0.06 205;
+  --ac: 100% 0 0;
+  --n: 24% 0.02 145;
+  --fallback-n: #1f2937;
+  --nc: 98% 0.005 145;
+  --b1: 98% 0.01 140;
+  --fallback-b1: #f6faf6;
+  --b2: 95% 0.014 140;
+  --b3: 92% 0.018 140;
+  --bc: 21% 0.015 145;
+  --in: 56% 0.12 230;
+  --inc: 100% 0 0;
+  --su: 51% 0.145 148;
+  --suc: 100% 0 0;
+  --wa: 62% 0.15 65;
+  --wac: 100% 0 0;
+  --er: 50% 0.19 28;
+  --erc: 100% 0 0;
+  --rounded-box: 1.25rem;
+  --rounded-btn: 9999px;
+  --rounded-badge: 9999px;
+}
+
+[data-theme="m3-dark"] {
+  color-scheme: dark;
+
+  /* Material Design 3 Tonal Surface Palette (Dark) */
+  --m3-surface: #111411;
+  --m3-surface-dim: #111411;
+  --m3-surface-container-lowest: #0c0f0c;
+  --m3-surface-container-low: #181c18;
+  --m3-surface-container: #1d221d;
+  --m3-surface-container-high: #262c27;
+  --m3-surface-container-highest: #313832;
+  --m3-inverse-surface: #e5e7eb;
+  --m3-inverse-on-surface: #111827;
+
+  --surface-container-high: var(--m3-surface-container-high);
+  --surface-container-highest: var(--m3-surface-container-highest);
+  --outline-variant: var(--m3-outline-variant);
+
+  --m3-primary: #34d375;
+  --m3-on-primary: #003917;
+  --m3-primary-container: #0b5328;
+  --m3-on-primary-container: #b9f3c6;
+
+  --m3-secondary: #b5ccb8;
+  --m3-on-secondary: #213526;
+  --m3-secondary-container: #374b3c;
+  --m3-on-secondary-container: #d1e8d4;
+
+  --m3-tertiary: #a2ced7;
+  --m3-tertiary-container: #204d55;
+
+  --m3-error: #ffb4ab;
+  --m3-error-container: #93000a;
+  --m3-on-error-container: #ffdad6;
+
+  --m3-warning: #ffb870;
+  --m3-warning-container: #5c3400;
+
+  --m3-text: #e2e5e1;
+  --m3-text-muted: #a6b0a7;
+  --m3-outline: #8b938b;
+  --m3-outline-variant: #3b443c;
+
+  --m3-code-bg: #08170e;
+  --m3-code-fg: #daf2e2;
+
+  /* DaisyUI 4 OKLCH Tokens & Surface Fallbacks (Dark) */
+  --p: 77% 0.17 150;
+  --pc: 24% 0.06 150;
+  --s: 81% 0.04 145;
+  --sc: 26% 0.03 145;
+  --a: 81% 0.05 205;
+  --ac: 28% 0.04 205;
+  --n: 26% 0.015 145;
+  --fallback-n: #262c27;
+  --nc: 91% 0.01 140;
+  --b1: 18% 0.01 140;
+  --fallback-b1: #111411;
+  --b2: 22% 0.012 140;
+  --b3: 28% 0.015 140;
+  --bc: 91% 0.01 140;
+  --in: 72% 0.12 230;
+  --inc: 20% 0.04 230;
+  --su: 77% 0.17 150;
+  --suc: 24% 0.06 150;
+  --wa: 80% 0.14 70;
+  --wac: 25% 0.05 60;
+  --er: 76% 0.15 25;
+  --erc: 25% 0.08 25;
+  --rounded-box: 1.25rem;
+  --rounded-btn: 9999px;
+  --rounded-badge: 9999px;
+}
+
+/* ==========================================================================
+   Typography & Base Constraints
+   ========================================================================== */
+
+html {
+  scroll-behavior: smooth;
+  font-family: 'Google Sans', 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.m3-body {
+  background-color: var(--m3-surface);
+  color: var(--m3-text);
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+p, li {
+  line-height: 1.55;
+}
+
+code, pre, .font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* Standardized Material Symbols Sizing & Defensive Fixed-Box Containment */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+  vertical-align: middle;
+  user-select: none;
+}
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+.material-symbols-outlined.icon-18 { font-size: 18px; }
+.material-symbols-outlined.icon-20 { font-size: 20px; }
+.material-symbols-outlined.icon-24 { font-size: 24px; }
+
+/* ==========================================================================
+   Material 3 Surface Helpers
+   ========================================================================== */
+
+.m3-topbar {
+  background-color: var(--m3-surface-container-low) !important;
+  border-bottom: 1px solid var(--m3-outline-variant);
+  backdrop-filter: none !important;
+  opacity: 1 !important;
+}
+
+.m3-sidebar {
+  background-color: var(--m3-surface-container-low) !important;
+  border-right: 1px solid var(--m3-outline-variant);
+}
+
+.m3-surface-container-lowest { background-color: var(--m3-surface-container-lowest); }
+.m3-surface-container-low, .m3-card-low { background-color: var(--m3-surface-container-low); }
+.m3-surface-container, .m3-card { background-color: var(--m3-surface-container); }
+.m3-surface-container-high { background-color: var(--m3-surface-container-high); }
+
+/* ==========================================================================
+   100% Opaque Elevated Surfaces (Modals, Toasts, Dropdowns & Form Controls)
+   ========================================================================== */
+
+.modal-box,
+.m3-modal-box {
+  background-color: var(--m3-surface-container-high) !important;
+  color: var(--m3-text) !important;
+  border: 1px solid var(--m3-outline-variant) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35) !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+}
+
+dialog.modal::backdrop,
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+#toast-container {
+  z-index: 9999 !important;
+  pointer-events: none;
+}
+
+#toast-container > div,
+.toast .alert {
+  pointer-events: auto;
+  background-color: var(--m3-inverse-surface) !important;
+  color: var(--m3-inverse-on-surface) !important;
+  border: 1px solid var(--m3-outline) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.24) !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+}
+
+#toast-container > .alert-success,
+.toast .alert.alert-success {
+  background-color: #065f46 !important;
+  color: #ecfdf5 !important;
+  border-color: #10b981 !important;
+}
+
+[data-theme="m3-dark"] #toast-container > .alert-success,
+[data-theme="m3-dark"] .toast .alert.alert-success {
+  background-color: #064e3b !important;
+  color: #d1fae5 !important;
+  border-color: #34d375 !important;
+}
+
+#toast-container > .alert-error,
+.toast .alert.alert-error {
+  background-color: #991b1b !important;
+  color: #fef2f2 !important;
+  border-color: #ef4444 !important;
+}
+
+[data-theme="m3-dark"] #toast-container > .alert-error,
+[data-theme="m3-dark"] .toast .alert.alert-error {
+  background-color: #7f1d1d !important;
+  color: #fee2e2 !important;
+  border-color: #f87171 !important;
+}
+
+.dropdown-content,
+.menu.dropdown-content {
+  background-color: var(--m3-surface-container-high) !important;
+  color: var(--m3-text) !important;
+  border: 1px solid var(--m3-outline-variant) !important;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.26) !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+  z-index: 9999 !important;
+}
+
+.input,
+.textarea,
+.file-input,
+.select {
+  background-color: var(--m3-surface-container-lowest) !important;
+  color: var(--m3-text) !important;
+  border-color: var(--m3-outline-variant) !important;
+}
+
+.tabs-boxed {
+  background-color: var(--m3-surface-container) !important;
+}
+
+.tabs-boxed .tab-active {
+  background-color: var(--m3-primary) !important;
+  color: var(--m3-on-primary) !important;
+}
+
+.m3-border-subtle { border-color: var(--m3-outline-variant) !important; }
+.m3-text-primary { color: var(--m3-primary); }
+.m3-text-muted { color: var(--m3-text-muted); }
+
+.m3-logo-badge {
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+}
+
+.m3-tonal-badge {
+  background-color: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border: none;
+}
+
+.m3-primary-container,
+.m3-success-container {
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+}
+
+.m3-error-container {
+  background-color: var(--m3-error-container);
+  color: var(--m3-on-error-container);
+}
+
+.m3-btn-tonal {
+  background-color: var(--m3-secondary-container);
+  color: var(--m3-on-secondary-container);
+  border: 1px solid transparent;
+}
+.m3-btn-tonal:hover {
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+}
+
+.btn-ghost:not(.copy-code-btn) {
+  background-color: transparent !important;
+  color: var(--m3-text) !important;
+  border-color: transparent !important;
+}
+.btn-ghost:not(.copy-code-btn):hover,
+.btn-ghost:not(.copy-code-btn):focus,
+.btn-ghost:not(.copy-code-btn):focus-visible,
+.dropdown.dropdown-open .btn-ghost,
+.dropdown:focus-within .btn-ghost {
+  background-color: var(--m3-surface-container-high) !important;
+  color: var(--m3-text) !important;
+  border-color: transparent !important;
+}
+.m3-code-header .copy-code-btn:hover,
+.m3-code-header .copy-code-btn:focus-visible {
+  background-color: rgba(52, 211, 117, 0.16) !important;
+  color: #a7f3d0 !important;
+}
+
+/* ==========================================================================
+   Dual-State Shrinkable Navigation Rail / Drawer
+   ========================================================================== */
+
+.m3-nav-item {
+  transition: background-color 0.15s ease, color 0.15s ease;
+  color: var(--m3-text);
+  text-decoration: none;
+  min-width: 0;
+}
+.m3-nav-item:hover:not(.is-locked) {
+  background-color: var(--m3-surface-container-high);
+}
+.m3-nav-item.is-active {
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+  font-weight: 700;
+}
+.m3-nav-item.is-locked {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.rail-module-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+}
+
+.rail-collapsed-only {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  #nav-drawer {
+    width: 264px;
+    flex: 0 0 264px;
+    height: 100%;
+    transition: width 200ms cubic-bezier(0.2, 0, 0, 1),
+                flex-basis 200ms cubic-bezier(0.2, 0, 0, 1),
+                padding 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  #nav-drawer.is-rail-collapsed {
+    width: 64px;
+    flex: 0 0 64px;
+    padding: 0.75rem 0.4rem;
+  }
+
+  #nav-drawer.is-rail-collapsed .rail-expanded-only {
+    display: none !important;
+  }
+
+  #nav-drawer.is-rail-collapsed .rail-collapsed-only {
+    display: flex !important;
+  }
+
+  #nav-drawer.is-rail-collapsed .rail-link {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 1023px) {
+  .m3-shell {
+    height: auto !important;
+    min-height: calc(100vh - 56px);
+    overflow: visible !important;
+  }
+  #app-view {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .m3-sidebar {
+    transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
+  .m3-sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+}
+
+/* ==========================================================================
+   Full-Viewport 3-Pane Resizable Engineering IDE
+   ========================================================================== */
+
+.ide-workspace-root {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: calc(100vh - 56px);
+}
+
+.ide-toolbar {
+  min-height: 48px;
+  background-color: var(--m3-surface-container-low);
+  border-bottom: 1px solid var(--m3-outline-variant);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+}
+
+.ide-split-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.ide-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background-color: var(--m3-surface);
+}
+
+.ide-resizer {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .ide-workspace-root {
+    height: calc(100vh - 56px);
+    overflow: hidden;
+  }
+
+  .ide-toolbar {
+    height: 48px;
+    flex: 0 0 48px;
+    flex-wrap: nowrap;
+    padding: 0 1rem;
+  }
+
+  .ide-split-container {
+    flex-direction: row;
+    overflow: hidden;
+  }
+
+  .ide-pane {
+    min-width: 240px;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .ide-resizer {
+    display: block;
+    width: 6px;
+    flex: 0 0 6px;
+    cursor: col-resize;
+    position: relative;
+    z-index: 20;
+    user-select: none;
+    background: transparent;
+  }
+
+  .ide-resizer::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 1px;
+    background-color: var(--m3-outline-variant);
+    transition: background-color 0.15s ease, width 0.15s ease;
+  }
+
+  .ide-resizer:hover::after,
+  .ide-resizer.is-dragging::after {
+    width: 2px;
+    background-color: var(--m3-primary);
+  }
+}
+
+body.is-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+body.is-resizing iframe {
+  pointer-events: none !important;
+}
+
+/* ==========================================================================
+   CodeMirror 5 Editor, Opaque Autocomplete (.CodeMirror-hints) & Preview
+   ========================================================================== */
+
+.ide-editor-wrap {
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--m3-surface-container-lowest);
+}
+
+.ide-editor-wrap > div {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ide-editor-wrap > div.hidden {
+  display: none !important;
+}
+
+.ide-editor-wrap .CodeMirror {
+  height: 100% !important;
+  min-height: 320px;
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.ide-fallback-textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  padding: 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13.5px;
+  line-height: 1.55;
+  background-color: var(--m3-code-bg);
+  color: var(--m3-code-fg);
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+/* Opaque Elevated Autocomplete Dropdown */
+.CodeMirror-hints {
+  position: absolute;
+  z-index: 9999 !important;
+  overflow-y: auto;
+  max-height: 240px;
+  margin: 0;
+  padding: 4px !important;
+  list-style: none;
+  background-color: var(--surface-container-high) !important;
+  color: var(--m3-text) !important;
+  border: 1px solid var(--outline-variant) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 12.5px !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
+}
+
+.CodeMirror-hint {
+  padding: 5px 10px !important;
+  border-radius: 6px !important;
+  color: var(--m3-text) !important;
+  cursor: pointer;
+  white-space: pre;
+}
+
+li.CodeMirror-hint-active {
+  background-color: var(--m3-primary-container) !important;
+  color: var(--m3-on-primary-container) !important;
+  font-weight: 600;
+}
+
+.CodeMirror-matchingtag {
+  background-color: rgba(52, 211, 117, 0.18);
+  border-bottom: 1px solid var(--m3-primary);
+}
+
+/* Sticky Mobile Symbol Toolbar (Strictly Mobile / Touch Viewports) */
+.m3-symbol-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+  background-color: var(--m3-surface-container-high);
+  border-top: 1px solid var(--m3-outline-variant);
+  padding: 0.45rem 0.5rem;
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.m3-symbol-bar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .m3-symbol-bar {
+    display: none !important;
+  }
+}
+
+.m3-symbol-pill {
+  flex: 0 0 auto;
+  min-width: 2.25rem;
+  height: 2.1rem;
+  padding: 0 0.6rem;
+  border-radius: 9999px;
+  border: 1px solid var(--m3-outline-variant);
+  background-color: var(--m3-surface-container-lowest);
+  color: var(--m3-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+.m3-symbol-pill:active {
+  transform: scale(0.95);
+  background-color: var(--m3-primary-container);
+}
+.m3-symbol-pill.is-emmet {
+  background-color: var(--m3-primary);
+  color: var(--m3-on-primary);
+  border-color: transparent;
+  font-family: 'Google Sans', 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.78rem;
+  padding: 0 0.8rem;
+}
+
+/* Sandboxed Live Preview Frame */
+.ide-preview-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 300px;
+  border: none;
+  background-color: #ffffff;
+}
+
+.ide-verify-preview-frame {
+  width: 100%;
+  height: 400px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 1rem;
+  background-color: #ffffff;
+}
+
+/* ==========================================================================
+   Lesson Code Blocks & Quiz Options
+   ========================================================================== */
+
+.m3-code-block {
+  background-color: var(--m3-code-bg);
+  color: var(--m3-code-fg);
+  border: 1px solid rgba(52, 211, 117, 0.22);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.m3-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  border-bottom: 1px solid rgba(52, 211, 117, 0.16);
+  color: #7ee3a3;
+}
+
+.m3-code-pre {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  font-size: 0.83rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.m3-quiz-option {
+  border: 1.5px solid var(--m3-outline-variant);
+  background-color: var(--m3-surface-container-lowest);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+.m3-quiz-option:hover {
+  border-color: var(--m3-primary);
+  background-color: var(--m3-surface-container-low);
+}
+.m3-quiz-option.is-selected {
+  border-color: var(--m3-primary);
+  background-color: var(--m3-primary-container);
+  color: var(--m3-on-primary-container);
+}
+.m3-quiz-option.is-correct {
+  border-color: #16a34a;
+  background-color: rgba(22, 163, 74, 0.14);
+}
+.m3-quiz-option.is-wrong {
+  border-color: var(--m3-error);
+  background-color: var(--m3-error-container);
+  color: var(--m3-on-error-container);
+}
+
+.m3-certificate-frame {
+  background-color: var(--m3-surface-container-lowest);
+  border: 2px solid var(--m3-primary);
+  border-radius: 1.5rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+  position: relative;
+}
+
+.m3-a4-certificate {
+  width: 100%;
+  max-width: 1050px;
+  margin-left: auto;
+  margin-right: auto;
+  background: #FAFDFB;
+  color: #111827;
+  border: 1px solid #E2E8F0;
+  outline: none;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(17, 24, 39, 0.06);
+  padding: clamp(16px, 3.6vw, 44px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.m3-a4-certificate-inner {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  background: #FFFFFF;
+  border: 1.5px solid #146C43;
+  padding: clamp(20px, 3.2vw, 38px) clamp(24px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1.25rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .m3-a4-certificate {
+    aspect-ratio: 297 / 210;
+  }
+  .m3-a4-certificate-inner {
+    gap: 0.75rem;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Minimal Offline Utility Fallbacks */
+.hidden { display: none; }
+.flex { display: flex; }
+.grid { display: grid; }
+.min-w-0 { min-width: 0; }
+.w-full { width: 100%; }
+.rounded-full { border-radius: 9999px; }
+.rounded-2xl { border-radius: 1rem; }
+.rounded-3xl { border-radius: 1.5rem; }
+
+/* ==========================================================================
+   Print Stylesheet for A4 Landscape Certificate & Printable Lab Manual
+   ========================================================================== */
+
+@page {
+  size: A4 landscape;
+  margin: 0;
+}
+
+#app-boot-loader.boot-loader-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #FDFBFF !important;
+    color: #111111 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  .m3-shell {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .no-print,
+  #app-boot-loader,
+  header.m3-topbar,
+  aside.m3-sidebar,
+  #drawer-backdrop,
+  #toast-container,
+  dialog {
+    display: none !important;
+  }
+  main#app-view {
+    height: auto !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body:not(.is-certificate-route) main#app-view {
+    padding: 12mm !important;
+  }
+  body.is-certificate-route .m3-a4-certificate {
+    width: 297mm !important;
+    height: 210mm !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    padding: 12mm !important;
+    border: none !important;
+    outline: none !important;
+    background: #FAFDFB !important;
+    box-shadow: none !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    overflow: hidden !important;
+  }
+  body.is-certificate-route .m3-a4-certificate-inner {
+    border: 1.5px solid #146C43 !important;
+    padding: 12mm 16mm !important;
+    background: #FFFFFF !important;
+  }
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .m3-code-block {
+    background: #f6f8fa !important;
+    color: #111827 !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .m3-code-header {
+    color: #065f46 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+  }
+  .m3-certificate-frame {
+    box-shadow: none !important;
+    border: 3px double #0e7a3a !important;
+  }
+}
