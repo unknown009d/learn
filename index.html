@@ -4,6 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vanilla Web Foundations — Learning the Web with Basics of Vanilla Front-End Tools | druba.in</title>
+  <meta name="description" content="Interactive learning workspace for Vanilla Web Foundations — HTML, CSS, and JavaScript basics by druba.in.">
+
+  <!-- Open Graph / Social Sharing -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Vanilla Web Foundations — druba.in · Learn">
+  <meta property="og:description" content="Learning the Web with Basics of Vanilla Front-End Tools.">
+  <meta property="og:image" content="./og-image.webp">
+  <meta property="og:image:type" content="image/webp">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="675">
+  <meta property="og:image:alt" content="Vanilla Web Foundations — druba.in · Learn">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Vanilla Web Foundations — druba.in · Learn">
+  <meta name="twitter:description" content="Learning the Web with Basics of Vanilla Front-End Tools.">
+  <meta name="twitter:image" content="./og-image.webp">
 
   <!-- Google Fonts: Google Sans, Plus Jakarta Sans, Inter, JetBrains Mono & Material Symbols Outlined -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,22 +69,28 @@
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/css-hint.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/hint/javascript-hint.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
-  <!-- Material Design 3 Theme & Full-Viewport Workspace Styles -->
-  <link rel="stylesheet" href="./css/style.css">
-</head>
-<body class="m3-body min-h-screen antialiased">
-
+  <!-- Resolve theme before CSS renders to prevent flash of wrong theme -->
   <script>
     (function () {
       try {
         var savedTheme = localStorage.getItem('druba_web_theme');
         if (savedTheme === 'm3-dark' || savedTheme === 'm3-light') {
           document.documentElement.setAttribute('data-theme', savedTheme);
+          return;
         }
+        var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'm3-dark' : 'm3-light');
       } catch (e) {}
     })();
   </script>
+
+  <!-- Material Design 3 Theme & Full-Viewport Workspace Styles -->
+  <link rel="stylesheet" href="./css/style.css">
+</head>
+<body class="m3-body min-h-screen antialiased">
 
   <!-- Material Design 3 Font & Icon Readiness Splash Overlay -->
   <div id="app-boot-loader" role="status" aria-live="polite" aria-label="Loading workspace"
@@ -110,7 +133,7 @@
         druba.in &middot; Loading Workspace...
       </div>
       <div class="m3-boot-sub" style="font-size:12px;color:#414942;line-height:1.4;">
-        Vanilla Web Foundations &middot; Initializing UI &amp; Fonts
+        Vanilla Web Foundations &middot; Initializing Awesomeness!
       </div>
     </div>
   </div>
