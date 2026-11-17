@@ -23,9 +23,8 @@ import { LABS, getLabById, getLabsByModule } from './labs-data.js';
 import { LabIDEController, composeSrcDoc } from './ide.js';
 import { renderLessonWidgetHtml, hydrateLessonWidget, runJsInSandbox } from './lesson-widgets.js';
 import {
-  generateCompletionKey,
+  issueSignedCertificate,
   verifyCompletionKey,
-  generateCompactQrToken,
   verifyCompactQrToken,
   encodeBackupToken,
   decodeBackupToken
@@ -2770,9 +2769,26 @@ async function renderCertificateView() {
     return;
   }
 
+  const view = document.getElementById('app-view');
   const fullState = await exportFullState();
-  const generated = await generateCompletionKey(fullState);
-  const qrInfo = await generateCompactQrToken(fullState, generated.signature);
+  let generated;
+  try {
+    generated = await issueSignedCertificate(fullState);
+  } catch (err) {
+    view.innerHTML = `
+      <section class="max-w-xl mx-auto mt-8">
+        <div class="m3-card rounded-3xl p-6 border m3-border-subtle text-center flex flex-col items-center gap-3">
+          <span class="material-symbols-outlined text-[40px] text-error">cloud_off</span>
+          <h1 class="text-xl font-bold">Could Not Issue Signed Certificate</h1>
+          <p class="text-sm m3-text-muted">${escapeHtml(err.message || 'Certificate signing server is unreachable. Check your internet connection and try again.')}</p>
+          <button id="cert-retry-btn" type="button" class="btn btn-primary rounded-full px-6 mt-2">Retry</button>
+        </div>
+      </section>
+    `;
+    document.getElementById('cert-retry-btn')?.addEventListener('click', () => renderCertificateView());
+    return;
+  }
+  const qrInfo = { token: generated.qrToken, verifyId: generated.verifyId };
 
   const quizScores = [1, 2, 3, 4, 5].map((m) => {
     const q = (fullState.quizzes || []).find((x) => Number(x.moduleId) === m);
@@ -2789,7 +2805,6 @@ async function renderCertificateView() {
   const qrPayload = `${baseUrl}#/verify?v=${encodeURIComponent(qrInfo.token)}`;
   const safeRoll = (fullState.profile.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  const view = document.getElementById('app-view');
   view.innerHTML = `
     <section class="max-w-6xl mx-auto flex flex-col gap-5">
       <!-- Certificate Action Bar (Hidden in Print) -->

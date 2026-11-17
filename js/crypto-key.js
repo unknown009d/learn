@@ -1,10 +1,19 @@
 /**
  * Cryptographic Completion Key & Checkpoint Token Engine
  * Uses native CompressionStream('gzip'), DecompressionStream('gzip'),
- * Base64URL encoding, and Web Crypto SHA-256 digests.
+ * Base64URL encoding, and ECDSA P-256 (ES256) signatures issued by
+ * the Cloudflare Worker and verified locally with the public key.
  */
 
-const COMPLETION_SALT = 'DRUBA_WEB_FOUNDATIONS_SALT_2025';
+export const CERT_WORKER_URL = 'https://druba-cert-api.dev-74a.workers.dev';
+
+const SIGNING_PUBLIC_JWK = {
+  kty: 'EC',
+  x: 'jPN3ZBtzks0j5ivXufJhUHVUoM6xnp4h8SyzZnxio3Q',
+  y: '5bPS0SjaALRXfpHb8_B78HiXVXvFDpJ-86ua4AaKAHY',
+  crv: 'P-256'
+};
+
 const KEY_PREFIX_GZIP = 'druba-web-v1.';
 const KEY_PREFIX_RAW = 'druba-web-v1r.';
 const BACKUP_PREFIX_GZIP = 'druba-web-bak1.';
@@ -163,19 +172,50 @@ export function buildCanonicalPayload(fullState) {
   };
 }
 
-export async function generateCompletionKey(fullState) {
+async function verifyEcdsaSignature(text, sigB64Url) {
+  if (!window.crypto?.subtle) {
+    throw new Error('Web Crypto ECDSA verification requires HTTPS or localhost.');
+  }
+  const key = await window.crypto.subtle.importKey(
+    'jwk',
+    SIGNING_PUBLIC_JWK,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['verify']
+  );
+  const sigBytes = base64UrlToBytes(sigB64Url);
+  return window.crypto.subtle.verify(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    key,
+    sigBytes,
+    new TextEncoder().encode(text)
+  );
+}
+
+export async function issueSignedCertificate(fullState) {
   const payload = buildCanonicalPayload(fullState);
-  const canonicalJson = JSON.stringify(payload);
-  const signature = await sha256Hex(`${canonicalJson}|${COMPLETION_SALT}`);
-  const envelopeJson = JSON.stringify({ p: payload, s: signature });
+  const res = await fetch(`${CERT_WORKER_URL}/issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Certificate server returned ${res.status}`);
+  }
+  const { verifyId, signature, qrSig, tuple } = data;
+  const envelopeJson = JSON.stringify({ alg: 'ES256', p: payload, s: signature });
   const { compressed, bytes } = await gzipText(envelopeJson);
   const prefix = compressed ? KEY_PREFIX_GZIP : KEY_PREFIX_RAW;
   const key = prefix + bytesToBase64Url(bytes);
+  const qrToken = bytesToBase64Url(new TextEncoder().encode(JSON.stringify([...tuple, qrSig])));
 
   return {
     key,
     payload,
     signature,
+    qrToken,
+    verifyId,
     compressed,
     byteLength: bytes.length
   };
@@ -217,16 +257,24 @@ export async function verifyCompletionKey(rawKey) {
       };
     }
 
-    const expectedSignature = await sha256Hex(`${JSON.stringify(parsed.p)}|${COMPLETION_SALT}`);
-    const valid = parsed.s === expectedSignature;
+    if (parsed.alg !== 'ES256') {
+      return {
+        valid: false,
+        tampered: true,
+        payload: parsed.p,
+        signature: parsed.s,
+        error: 'This verification code is unsigned or uses a deprecated legacy format.'
+      };
+    }
+
+    const valid = await verifyEcdsaSignature(JSON.stringify(parsed.p), parsed.s);
 
     return {
       valid,
       tampered: !valid,
       payload: parsed.p,
       signature: parsed.s,
-      expectedSignature,
-      error: valid ? null : 'This verification code has been altered and does not match the original certificate.'
+      error: valid ? null : 'This verification code has an invalid or forged signature.'
     };
   } catch (err) {
     return {
@@ -235,43 +283,6 @@ export async function verifyCompletionKey(rawKey) {
       error: `Could not read this verification code: ${err.message}`
     };
   }
-}
-
-export async function generateCompactQrToken(fullState, fullCodeSignature = '') {
-  const quizScores = [1, 2, 3, 4, 5].map((m) => {
-    const q = (fullState.quizzes || []).find((x) => Number(x.moduleId) === m);
-    return Number(q?.bestScorePercent || 0);
-  });
-  const avgScore = Math.round(quizScores.reduce((a, b) => a + b, 0) / 5);
-  const labsPassed = (fullState.practicals || []).filter((p) => p.completed).length;
-
-  const name = String(fullState.profile?.fullName || '').trim();
-  const rollNo = String(fullState.profile?.rollNo || '').trim();
-  const date = String(fullState.issuedAt || new Date().toISOString()).slice(0, 10);
-  const codeHash = String(fullCodeSignature || '').slice(0, 10);
-
-  // Compact positional tuple keeps the QR code low-density and fast to scan
-  const tuple = [name, rollNo, date, quizScores, labsPassed, codeHash];
-  const fullSig = await sha256Hex(`${JSON.stringify(tuple)}|${COMPLETION_SALT}`);
-  const sig = fullSig.slice(0, 16);
-  const token = bytesToBase64Url(new TextEncoder().encode(JSON.stringify([...tuple, sig])));
-  const verifyId = `DRUBA-WEB-${sig.slice(0, 10).toUpperCase()}`;
-
-  return {
-    token,
-    verifyId,
-    payload: {
-      name,
-      rollNo,
-      course: 'Learning the Web with Basics of Vanilla Front-End Tools (druba.in)',
-      date,
-      quizScores,
-      avgScore,
-      labsPassed,
-      codeHash,
-      sig
-    }
-  };
 }
 
 export async function verifyCompactQrToken(tokenString) {
@@ -286,69 +297,60 @@ export async function verifyCompactQrToken(tokenString) {
     const bytes = base64UrlToBytes(trimmed);
     const parsed = JSON.parse(new TextDecoder().decode(bytes));
 
-    if (Array.isArray(parsed) && parsed.length === 7 && typeof parsed[6] === 'string') {
-      const tuple = [
-        String(parsed[0] || ''),
-        String(parsed[1] || ''),
-        String(parsed[2] || ''),
-        Array.isArray(parsed[3]) ? parsed[3].map(Number) : [],
-        Number(parsed[4] || 0),
-        String(parsed[5] || '')
-      ];
-      const sig = String(parsed[6]);
-      const expectedFullSig = await sha256Hex(`${JSON.stringify(tuple)}|${COMPLETION_SALT}`);
-      const expectedSig = expectedFullSig.slice(0, 16);
-      const valid = sig === expectedSig;
-      const quizScores = tuple[3];
-      const avgScore = quizScores.length
-        ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
-        : 0;
-
-      return {
-        valid,
-        tampered: !valid,
-        payload: {
-          name: tuple[0],
-          rollNo: tuple[1],
-          course: 'Learning the Web with Basics of Vanilla Front-End Tools (druba.in)',
-          date: tuple[2],
-          quizScores,
-          avgScore,
-          labsPassed: tuple[4],
-          codeHash: tuple[5],
-          sig
-        },
-        signature: sig,
-        expectedSignature: expectedSig,
-        verifyId: `DRUBA-WEB-${sig.slice(0, 10).toUpperCase()}`,
-        error: valid ? null : 'This QR code was altered and no longer matches the original certificate.'
-      };
-    }
-
-    if (!parsed || typeof parsed !== 'object' || typeof parsed.sig !== 'string') {
+    if (!Array.isArray(parsed) || parsed.length !== 7 || typeof parsed[6] !== 'string') {
       return { valid: false, tampered: true, error: 'This QR verification link could not be read.' };
     }
-    const core = {
-      name: String(parsed.name || ''),
-      rollNo: String(parsed.rollNo || ''),
-      course: String(parsed.course || ''),
-      date: String(parsed.date || ''),
-      quizScores: Array.isArray(parsed.quizScores) ? parsed.quizScores.map(Number) : [],
-      avgScore: Number(parsed.avgScore || 0),
-      labsPassed: Number(parsed.labsPassed || 0),
-      codeHash: String(parsed.codeHash || '')
-    };
-    const expectedFullSig = await sha256Hex(`${JSON.stringify(core)}|${COMPLETION_SALT}`);
-    const expectedSig = expectedFullSig.slice(0, 24);
-    const valid = parsed.sig === expectedSig;
+
+    const tuple = [
+      String(parsed[0] || ''),
+      String(parsed[1] || ''),
+      String(parsed[2] || ''),
+      Array.isArray(parsed[3]) ? parsed[3].map(Number) : [],
+      Number(parsed[4] || 0),
+      String(parsed[5] || '')
+    ];
+    const sig = String(parsed[6]);
+    let valid = await verifyEcdsaSignature(JSON.stringify(tuple), sig);
+    const verifyHash = await sha256Hex(sig);
+    const verifyId = `DRUBA-WEB-${verifyHash.slice(0, 10).toUpperCase()}`;
+    let error = valid ? null : 'This QR code has an invalid or forged signature.';
+
+    // Optional registry/revocation check against Cloudflare Worker KV if bound
+    if (valid) {
+      try {
+        const res = await fetch(`${CERT_WORKER_URL}/verify?id=${encodeURIComponent(verifyId)}`);
+        if (res.ok) {
+          const reg = await res.json();
+          if (reg.revoked) {
+            valid = false;
+            error = 'This certificate has been revoked by the course administrator.';
+          }
+        }
+      } catch {}
+    }
+
+    const quizScores = tuple[3];
+    const avgScore = quizScores.length
+      ? Math.round(quizScores.reduce((a, b) => a + b, 0) / quizScores.length)
+      : 0;
+
     return {
       valid,
       tampered: !valid,
-      payload: parsed,
-      signature: parsed.sig,
-      expectedSignature: expectedSig,
-      verifyId: `DRUBA-WEB-${String(parsed.sig).slice(0, 10).toUpperCase()}`,
-      error: valid ? null : 'This QR code was altered and no longer matches the original certificate.'
+      payload: {
+        name: tuple[0],
+        rollNo: tuple[1],
+        course: 'Learning the Web with Basics of Vanilla Front-End Tools (druba.in)',
+        date: tuple[2],
+        quizScores,
+        avgScore,
+        labsPassed: tuple[4],
+        codeHash: tuple[5],
+        sig
+      },
+      signature: sig,
+      verifyId,
+      error
     };
   } catch (err) {
     return {
@@ -392,135 +394,4 @@ export async function decodeBackupToken(tokenString) {
   const bytes = base64UrlToBytes(body);
   const json = await gunzipBytes(bytes, isCompressed);
   return JSON.parse(json);
-}
-
-export async function generateDemoKey(tamper = false) {
-  const baseTime = Date.now() - 3600 * 1000 * 5;
-  const ts = (minOffset) => new Date(baseTime + minOffset * 60000).toISOString();
-
-  const demoState = {
-    issuedAt: ts(280),
-    profile: {
-      fullName: 'Ananya Das',
-      rollNo: 'WEB25-014'
-    },
-    quizzes: [
-      { moduleId: 1, bestScorePercent: 90, attempts: 1, passed: true, completedAt: ts(30) },
-      { moduleId: 2, bestScorePercent: 80, attempts: 2, passed: true, completedAt: ts(75) },
-      { moduleId: 3, bestScorePercent: 90, attempts: 1, passed: true, completedAt: ts(150) },
-      { moduleId: 4, bestScorePercent: 100, attempts: 1, passed: true, completedAt: ts(220) },
-      { moduleId: 5, bestScorePercent: 80, attempts: 1, passed: true, completedAt: ts(270) }
-    ],
-    practicals: [
-      {
-        labId: 1,
-        htmlCode: `<h1>Ananya Das</h1>\n<p>Learning front-end web engineering with <b>HTML5, CSS3, and JavaScript</b>.</p>\n<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Ujjayanta_Palace_Agartala.jpg/320px-Ujjayanta_Palace_Agartala.jpg" alt="Ujjayanta Palace in Agartala" width="240">\n<p><a href="https://swayam.gov.in" target="_blank">Explore SWAYAM Courses</a></p>`,
-        cssCode: '',
-        jsCode: '',
-        passedAssertions: 5,
-        totalAssertions: 5,
-        activeTypingSeconds: 142,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(90)
-      },
-      {
-        labId: 2,
-        htmlCode: `<form action="register.php" method="post">\n  <label for="fullname">Full Name</label>\n  <input id="fullname" name="name" type="text" required>\n  <label for="email">Email</label>\n  <input id="email" name="email" type="email" required>\n  <label for="pwd">Password</label>\n  <input id="pwd" name="pwd" type="password" required>\n  <input type="radio" name="batch" value="morning" id="m" checked> <label for="m">Morning</label>\n  <input type="radio" name="batch" value="evening" id="e"> <label for="e">Evening</label>\n  <input type="submit" value="Register">\n</form>`,
-        cssCode: '',
-        jsCode: '',
-        passedAssertions: 5,
-        totalAssertions: 5,
-        activeTypingSeconds: 196,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(105)
-      },
-      {
-        labId: 3,
-        htmlCode: `<h2>Course Schedule &amp; Topics</h2>\n<table border="1" cellpadding="8">\n  <tr><th colspan="3">Time Table</th></tr>\n  <tr><th>Day</th><th>Time</th><th>Subject</th></tr>\n  <tr><td rowspan="2">Monday</td><td>10:30</td><td>HTML</td></tr>\n  <tr><td>12:00</td><td>CSS</td></tr>\n</table>\n<ul>\n  <li>Front End\n    <ul>\n      <li>HTML5</li>\n      <li>CSS3</li>\n    </ul>\n  </li>\n  <li>Back End</li>\n</ul>`,
-        cssCode: '',
-        jsCode: '',
-        passedAssertions: 5,
-        totalAssertions: 5,
-        activeTypingSeconds: 175,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(120)
-      },
-      {
-        labId: 4,
-        htmlCode: `<style>\n  body { background-color: lightyellow; font-family: Arial, sans-serif; }\n</style>\n<h1 id="title">Welcome to Web Design</h1>\n<p class="alert">Live practical sessions start at 10:30 AM.</p>`,
-        cssCode: `#title {\n  color: darkgreen;\n  text-align: center;\n}\n.alert {\n  color: red;\n  padding: 12px;\n  border: 2px solid #1E88E5;\n}`,
-        jsCode: '',
-        passedAssertions: 4,
-        totalAssertions: 4,
-        activeTypingSeconds: 118,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(230)
-      },
-      {
-        labId: 5,
-        htmlCode: `<form id="regForm">\n  <input id="nameInput" type="text" placeholder="Full Name"><br><br>\n  <input id="emailInput" type="email" placeholder="Email"><br><br>\n  <input id="passInput" type="password" placeholder="Password (min 6 chars)"><br><br>\n  <button type="submit">Validate &amp; Register</button>\n</form>\n<p id="msg"></p>`,
-        cssCode: `#msg { font-weight: bold; margin-top: 10px; }`,
-        jsCode: `const form = document.getElementById("regForm");\nconst msg = document.getElementById("msg");\nform.addEventListener("submit", function (e) {\n  e.preventDefault();\n  try {\n    const name = document.getElementById("nameInput").value.trim();\n    const email = document.getElementById("emailInput").value.trim();\n    const pwd = document.getElementById("passInput").value;\n    if (!name) throw new Error("Name is required");\n    if (!email.includes("@")) throw new Error("Valid email is required");\n    if (pwd.length < 6) throw new Error("Password must be at least 6 characters");\n    msg.textContent = "Registration valid!";\n    msg.style.color = "green";\n  } catch (err) {\n    msg.textContent = "Error: " + err.message;\n    msg.style.color = "red";\n  }\n});`,
-        passedAssertions: 5,
-        totalAssertions: 5,
-        activeTypingSeconds: 215,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(170)
-      },
-      {
-        labId: 6,
-        htmlCode: `<div class="clock-card">\n  <h2>Live Campus Clock</h2>\n  <p id="dateDisplay"></p>\n  <p id="timeDisplay"></p>\n</div>`,
-        cssCode: `.clock-card { padding: 20px; border: 2px solid #0e7a3a; border-radius: 12px; text-align: center; }`,
-        jsCode: `function updateClock() {\n  const now = new Date();\n  document.getElementById("dateDisplay").textContent = now.toLocaleDateString("en-IN");\n  document.getElementById("timeDisplay").textContent = now.toLocaleTimeString();\n}\nupdateClock();\nsetInterval(updateClock, 1000);`,
-        passedAssertions: 4,
-        totalAssertions: 4,
-        activeTypingSeconds: 124,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(195)
-      },
-      {
-        labId: 7,
-        htmlCode: `<h2 id="heading">Old Notice</h2>\n<div id="infoBox">Original content</div>\n<button id="updateBtn">Update Notice</button>`,
-        cssCode: `#infoBox { padding: 12px; border: 1px solid #999; margin: 10px 0; }`,
-        jsCode: `document.getElementById("updateBtn").addEventListener("click", function () {\n  const box = document.getElementById("infoBox");\n  box.innerHTML = "<strong>Updated:</strong> Lab exam on <em>Friday</em>!";\n  box.style.backgroundColor = "lightyellow";\n  document.getElementById("heading").textContent = "Updated Notice";\n});`,
-        passedAssertions: 4,
-        totalAssertions: 4,
-        activeTypingSeconds: 130,
-        pasteCount: 0,
-        completed: true,
-        completedAt: ts(245)
-      },
-      {
-        labId: 8,
-        htmlCode: `<div class="layout-box">\n  <h3>Notice Board</h3>\n  <p>Office closed on <span class="highlight">Sunday</span>.</p>\n</div>`,
-        cssCode: `.layout-box {\n  width: 280px;\n  padding: 20px;\n  border: 4px solid green;\n  margin: 20px;\n  box-sizing: border-box;\n  background-color: lightyellow;\n}\n.highlight {\n  color: red;\n  font-weight: bold;\n}`,
-        jsCode: '',
-        passedAssertions: 5,
-        totalAssertions: 5,
-        activeTypingSeconds: 160,
-        pasteCount: 1,
-        completed: true,
-        completedAt: ts(260)
-      }
-    ]
-  };
-
-  const generated = await generateCompletionKey(demoState);
-  if (!tamper) {
-    return generated.key;
-  }
-
-  // Produce an authentic-looking but tampered key (altered score without updating signature)
-  const decoded = await verifyCompletionKey(generated.key);
-  const tamperedPayload = JSON.parse(JSON.stringify(decoded.payload));
-  tamperedPayload.quizzes[0].bestScorePercent = 100; // Tampered!
-  const envelopeJson = JSON.stringify({ p: tamperedPayload, s: decoded.signature });
-  const { compressed, bytes } = await gzipText(envelopeJson);
-  return (compressed ? KEY_PREFIX_GZIP : KEY_PREFIX_RAW) + bytesToBase64Url(bytes);
 }
