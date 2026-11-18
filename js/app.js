@@ -877,10 +877,9 @@ function renderSidebarAndProgress() {
         <div class="rail-expanded-only p-3">
           <div class="flex items-center gap-2 text-sm font-semibold">
             <span class="material-symbols-outlined icon-20 m3-text-primary">person_add</span>
-            <span>Start Your Course</span>
+            <span>Welcome Guest</span>
           </div>
-          <p class="text-xs m3-text-muted mt-1">Enter your name and ID to unlock Module 1.</p>
-          <a href="#/" class="btn btn-xs btn-primary rounded-full mt-2.5 w-full">Start Learning</a>
+          <p class="text-xs m3-text-muted mt-1">Enter your name and ID to have your account locally.</p>
         </div>
         <div class="rail-collapsed-only p-1.5 justify-center">
           <a href="#/" class="btn btn-sm btn-ghost btn-circle" title="Start Your Course">
