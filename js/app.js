@@ -81,6 +81,14 @@ function formatDuration(sec) {
   return mins > 0 ? `${mins}m ${rem}s` : `${rem}s`;
 }
 
+function scrollViewToTop() {
+  const view = document.getElementById('app-view');
+  if (view) {
+    view.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
 function showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -326,7 +334,64 @@ function initTheme() {
 // Checkpoint Saved Modal & Backup Modal
 // ============================================================================
 
-async function triggerCheckpointModal(title, _description, moduleCode = 'M1') {
+function launchCheckpointBurst() {
+  const modal = document.getElementById('checkpoint-modal');
+  const box = modal?.querySelector('.modal-box');
+  const layer = document.getElementById('checkpoint-burst-layer');
+  if (!box || !layer) return;
+
+  layer.innerHTML = '';
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'm3-dark';
+  const palette = isDark
+    ? ['#34d375', '#6ee7b7', '#b9f3c6', '#a2ced7', '#ffb870', '#fde047']
+    : ['#0e7a3a', '#16a34a', '#0284c7', '#d97706', '#e11d48', '#7c3aed'];
+
+  requestAnimationFrame(() => {
+    const rect = box.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+
+    const origins = [
+      { x: rect.left + rect.width * 0.14, y: rect.top + rect.height * 0.14, count: 18 },
+      { x: rect.right - rect.width * 0.14, y: rect.top + rect.height * 0.14, count: 18 },
+      { x: rect.left + rect.width * 0.5, y: rect.top + 8, count: 14 }
+    ];
+
+    origins.forEach((origin, oIdx) => {
+      for (let i = 0; i < origin.count; i++) {
+        const p = document.createElement('span');
+        p.className = 'ck-particle';
+
+        const angle = (Math.PI * 2 * i) / origin.count + (Math.random() - 0.5) * 0.35;
+        const dist = 55 + Math.random() * 95;
+        const tx = Math.cos(angle) * dist;
+        const ty = Math.sin(angle) * dist + 18;
+        const size = 6 + Math.round(Math.random() * 5);
+        const isRibbon = i % 3 === 0;
+
+        p.style.setProperty('--sx', `${origin.x.toFixed(1)}px`);
+        p.style.setProperty('--sy', `${origin.y.toFixed(1)}px`);
+        p.style.setProperty('--tx', `${tx.toFixed(1)}px`);
+        p.style.setProperty('--ty', `${ty.toFixed(1)}px`);
+        p.style.setProperty('--size', `${size}px`);
+        p.style.setProperty('--radius', isRibbon ? '3px' : '9999px');
+        p.style.setProperty('--color', palette[(i + oIdx) % palette.length]);
+        p.style.setProperty('--dur', `${900 + Math.round(Math.random() * 450)}ms`);
+        p.style.setProperty('--delay', `${oIdx * 110 + Math.round(Math.random() * 80)}ms`);
+        p.style.setProperty('--rot', `${Math.round((Math.random() - 0.5) * 360)}deg`);
+
+        if (isRibbon) {
+          p.style.width = `${size + 6}px`;
+          p.style.height = `${Math.max(4, size - 3)}px`;
+        }
+
+        layer.appendChild(p);
+      }
+    });
+  });
+}
+
+async function triggerCheckpointModal(title, description, moduleCode = 'M1') {
   const modal = document.getElementById('checkpoint-modal');
   if (!modal) return;
 
@@ -335,14 +400,41 @@ async function triggerCheckpointModal(title, _description, moduleCode = 'M1') {
   const safeRoll = (fullState.profile?.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
   const filename = `${safeRoll}_druba-web_${moduleCode}.json`;
 
+  // Extract percentage score (e.g. "Module 1 Quiz Passed (100%)" -> "100%")
+  const scoreMatch = String(title || '').match(/(\d+%)/);
+  const cleanHeading = String(title || 'Milestone Unlocked').replace(/\s*\(\d+%\)/, '').trim();
+
+  const scoreVal = document.getElementById('checkpoint-score-value');
+  const scoreLbl = document.getElementById('checkpoint-score-label');
+  if (scoreVal && scoreLbl) {
+    scoreVal.textContent = scoreMatch ? scoreMatch[1] : '100%';
+    scoreLbl.textContent = scoreMatch ? 'Quiz Score' : 'Labs Verified';
+  }
+
   const badgeEl = document.getElementById('checkpoint-modal-badge');
-  if (badgeEl) badgeEl.textContent = title || 'Progress Saved';
-  document.getElementById('checkpoint-modal-title').textContent = 'Module Complete — Save a Copy of Your Progress';
-  document.getElementById('checkpoint-modal-desc').textContent =
-    'Your work is saved in this browser, but downloading a backup file lets you restore your progress if you switch computers or clear your browser data.';
+  if (badgeEl) badgeEl.textContent = `${moduleCode.replace('_', ' ')} Milestone`;
+
+  const titleEl = document.getElementById('checkpoint-modal-title');
+  if (titleEl) titleEl.textContent = cleanHeading;
+
+  const descEl = document.getElementById('checkpoint-modal-desc');
+  if (descEl) {
+    descEl.textContent = description || 'Your progress is saved automatically in this browser.';
+  }
+
+  const prog = computeOverallProgress();
+  const progText = document.getElementById('checkpoint-progress-text');
+  if (progText) {
+    progText.textContent = `${prog.done} of ${prog.totalSteps} Milestones Completed (${prog.percent}%)`;
+  }
+
+  // Always start collapsed
+  const backupAccordion = document.getElementById('checkpoint-backup-accordion');
+  if (backupAccordion) backupAccordion.open = false;
+
   document.getElementById('checkpoint-token-preview').value = token;
   document.getElementById('checkpoint-filename-badge').textContent = filename;
-  document.getElementById('checkpoint-download-name').textContent = filename;
+  document.getElementById('checkpoint-download-name').textContent = 'Download .json';
 
   const copyBtn = document.getElementById('checkpoint-copy-token-btn');
   copyBtn.onclick = () => copyToClipboard(token, 'Backup text copied! Save it in your notes or messages.');
@@ -355,6 +447,7 @@ async function triggerCheckpointModal(title, _description, moduleCode = 'M1') {
 
   if (typeof modal.showModal === 'function') {
     modal.showModal();
+    launchCheckpointBurst();
   }
 }
 
@@ -882,9 +975,10 @@ function renderSidebarAndProgress() {
           <p class="text-xs m3-text-muted mt-1">Enter your name and ID to have your account locally.</p>
         </div>
         <div class="rail-collapsed-only p-1.5 justify-center">
-          <a href="#/" class="btn btn-sm btn-ghost btn-circle" title="Start Your Course">
+          <button class="btn btn-sm btn-ghost btn-circle" title="Enter your details to create an account"
+                  onclick="document.querySelector('#reg-fullname').focus()">
             <span class="material-symbols-outlined icon-20 m3-text-primary">person_add</span>
-          </a>
+          </button>
         </div>
       `;
     }
@@ -1033,7 +1127,7 @@ function renderHomeView() {
     <section class="max-w-6xl mx-auto flex flex-col gap-6">
       <!-- Course Overview Header -->
       <div class="m3-card rounded-3xl p-6 sm:p-8 border m3-border-subtle">
-        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div class="max-w-2xl">
             <div class="flex flex-wrap items-center gap-2 mb-3">
               <span class="badge m3-primary-container font-mono font-bold px-3 py-2.5">Free course</span>
@@ -1043,7 +1137,7 @@ function renderHomeView() {
               Learn to build for the Web, step by step
             </h1>
             <p class="m3-text-muted mt-2.5 text-sm sm:text-base">
-              Start from how websites work and build real pages using HTML, CSS, and JavaScript. Read each short lesson, pass a quick 60% quiz, and complete 8 hands-on coding labs right in your browser—no setup required. Finish all modules to download your verified certificate.
+              Start from how websites work and build real pages using HTML, CSS, and JavaScript. Read each short lesson, pass a quick 60% quiz, and complete 8 hands-on coding labs right in your browser. Finish all modules to download your verified certificate.
             </p>
             ${registered ? `
               <div class="mt-5 flex flex-wrap gap-3 items-center">
@@ -1061,11 +1155,17 @@ function renderHomeView() {
 
           <!-- Progress Summary -->
           <div class="m3-surface-container-low rounded-3xl p-5 border m3-border-subtle min-w-[220px] flex flex-col items-center text-center shrink-0">
-            <div class="radial-progress text-primary font-bold text-xl" style="--value:${prog.percent}; --size:5.25rem; --thickness:7px;" role="progressbar">
-              ${prog.percent}%
-            </div>
-            <div class="font-bold text-sm mt-3">${prog.done} / ${prog.totalSteps} Steps</div>
-            <div class="text-xs m3-text-muted mt-0.5">5 Quizzes &middot; 8 Coding Labs</div>
+            ${!registered ? 
+            `
+              <span class="material-symbols-outlined codeicon text-primary">code_xml</span>  
+            `:
+            `
+              <div class="radial-progress text-primary font-bold text-xl" style="--value:${prog.percent}; --size:5.25rem; --thickness:7px;" role="progressbar">
+                ${prog.percent}%
+              </div>
+              <div class="font-bold text-sm mt-3">${prog.done} / ${prog.totalSteps} Steps</div>
+              <div class="text-xs m3-text-muted mt-0.5">5 Quizzes &middot; 8 Coding Labs</div>
+            `}
           </div>
         </div>
       </div>
@@ -1073,7 +1173,7 @@ function renderHomeView() {
       ${!registered ? `
         <!-- Student Onboarding Gate -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 m3-surface-container-lowest rounded-3xl p-6 sm:p-8 border-2 border-primary/40">
+          <div class="lg:col-span-3 m3-surface-container-lowest rounded-3xl p-6 sm:p-8 border-2 border-primary/40">
             <div class="flex items-center gap-3 mb-4">
               <div class="w-11 h-11 rounded-2xl m3-primary-container flex items-center justify-center shrink-0">
                 <span class="material-symbols-outlined icon-24">badge</span>
@@ -1098,35 +1198,26 @@ function renderHomeView() {
                   <span class="material-symbols-outlined icon-18">lock_open</span>
                   Start Learning
                 </button>
+                <button id="home-open-restore-btn" type="button" class="btn m3-btn-tonal rounded-full gap-2">
+                  <span class="material-symbols-outlined icon-18">cloud_sync</span>
+                  Already an user?
+                </button>
               </div>
             </form>
-          </div>
-
-          <div class="m3-card rounded-3xl p-6 border m3-border-subtle flex flex-col justify-between gap-4">
-            <div>
-              <div class="flex items-center gap-2 font-bold text-base">
-                <span class="material-symbols-outlined icon-20 m3-text-primary">settings_backup_restore</span>
-                Switching Devices?
-              </div>
-              <p class="text-xs m3-text-muted mt-2">
-                Already started on another computer or phone? Upload your saved progress file (<code class="font-mono">.json</code>) or paste your backup code to pick up right where you left off.
-              </p>
-            </div>
-            <button id="home-open-restore-btn" type="button" class="btn m3-btn-tonal rounded-full gap-2 w-full">
-              <span class="material-symbols-outlined icon-18">cloud_sync</span>
-              Load Saved Progress
-            </button>
           </div>
         </div>
       ` : ''}
 
       <!-- Module Roadmap Cards -->
-      <div>
-        <h2 class="text-lg font-bold mb-3 flex items-center gap-2">
-          <span class="material-symbols-outlined icon-24 m3-text-primary">route</span>
-          Course Modules
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <details class="m3-accordion m3-surface-container-lowest border m3-border-subtle rounded-2xl" name="my-accordion-det-1" ${isRegistered()?`open`:``}>
+        <summary class="m3-accordion-trigger px-5 py-4 text-lg font-bold">
+          <span class="flex items-center gap-3 min-w-0">
+            <span class="material-symbols-outlined icon-24 m3-text-primary">route</span>
+            <span>${isRegistered() ? 'Course Modules' : 'Get an overview of the course'}</span>
+          </span>
+          <span class="material-symbols-outlined icon-24 m3-accordion-chevron">expand_more</span>
+        </summary>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 m3-accordion-body p-5">
           ${MODULES.map((mod) => {
             const gate = getModuleGateStatus(mod.id);
             const q = appState.quizzes.get(mod.id);
@@ -1153,31 +1244,35 @@ function renderHomeView() {
                   </div>
                   <p class="text-xs m3-text-muted mt-3">${escapeHtml(mod.summary)}</p>
                 </div>
-
-                <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t m3-border-subtle text-xs">
-                  <div class="flex items-center gap-2">
-                    <span class="badge badge-outline font-mono gap-1">
-                      Quiz: ${q?.passed ? `${q.bestScorePercent}% <span class="material-symbols-outlined" style="font-size:14px">check</span>` : q ? `${q.bestScorePercent}%` : 'Pending'}
-                    </span>
-                    ${labs.length ? `
-                      <span class="badge badge-outline font-mono">
-                        Labs: ${labsDoneCount}/${labs.length}
-                      </span>
-                    ` : ''}
-                  </div>
-                  ${gate.unlocked ? `
-                    <a href="#/module/${mod.id}" class="btn btn-xs btn-primary rounded-full px-3.5">
-                      Open Module
-                    </a>
-                  ` : `
-                    <span class="text-[11px] m3-text-muted">Complete the previous module to unlock</span>
-                  `}
-                </div>
+                
+                ${!isRegistered() ? ``:
+                  `
+                    <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t m3-border-subtle text-xs">
+                      <div class="flex items-center gap-2">
+                        <span class="badge badge-outline font-mono gap-1">
+                          Quiz: ${q?.passed ? `${q.bestScorePercent}% <span class="material-symbols-outlined" style="font-size:14px">check</span>` : q ? `${q.bestScorePercent}%` : 'Pending'}
+                        </span>
+                        ${labs.length ? `
+                          <span class="badge badge-outline font-mono">
+                            Labs: ${labsDoneCount}/${labs.length}
+                          </span>
+                        ` : ''}
+                      </div>
+                      ${gate.unlocked ? `
+                        <a href="#/module/${mod.id}" class="btn btn-sm rounded-full px-3.5">
+                          Open Module <span class="material-symbols-outlined icon-18">arrow_forward</span>
+                        </a>
+                      ` : `
+                        <span class="text-[11px] m3-text-muted">Complete the previous module to unlock</span>
+                      `}
+                    </div>
+                  `
+                }
               </div>
             `;
           }).join('')}
         </div>
-      </div>
+      </details>
     </section>
   `;
 
@@ -1282,7 +1377,7 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
       </div>
 
       <!-- Anchored Bottom Lesson Footer inside Pane 1 -->
-      <footer class="m3-mobile-sticky-bar lg:border-t lg:m3-border-subtle lg:m3-surface-container-low lg:px-4 lg:py-2.5 lg:flex lg:items-center lg:justify-between lg:gap-2 shrink-0">
+      <footer class="m3-mobile-sticky-bar m3-border-subtle lg:border-t lg:m3-surface-container-low lg:px-4 lg:py-2.5 lg:flex lg:items-center lg:justify-between lg:gap-2 shrink-0">
         <div class="m3-mobile-split-actions lg:contents">
           <div class="m3-mobile-prev-wrap lg:flex lg:items-center lg:gap-1.5">
             ${currentStep > 1 ? `
@@ -1303,7 +1398,7 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
 
           <button id="lesson-complete-next-btn" type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-1.5" title="${isLastLesson ? 'Take Quiz' : 'Next Lesson'} (Ctrl+Enter)">
             <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
-            <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+            <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
             <span class="material-symbols-outlined icon-18">arrow_forward</span>
           </button>
         </div>
@@ -1943,25 +2038,25 @@ function drawQuizSession(mod, quiz, prevRecord) {
                 <button id="retake-quiz-btn" type="button" class="btn btn-primary rounded-full px-5 gap-1.5" title="Try Quiz Again (Ctrl+Enter)">
                   <span class="material-symbols-outlined text-[18px]">shuffle</span>
                   Try Quiz Again
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
                 </button>
               ` : labs.length ? `
                 <a id="quiz-continue-btn" href="#/lab/${labs[0].id}" class="btn btn-primary rounded-full px-5 gap-1.5" title="Continue (Ctrl+Enter)">
                   <span>Start ${labs[0].code}</span>
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
                   <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </a>
               ` : mod.id < 5 ? `
                 <a id="quiz-continue-btn" href="#/module/${mod.id + 1}" class="btn btn-primary rounded-full px-5 gap-1.5" title="Continue (Ctrl+Enter)">
                   <span>Continue to Module ${mod.id + 1}</span>
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
                   <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
                 </a>
               ` : `
                 <a id="quiz-continue-btn" href="#/certificate" class="btn btn-primary rounded-full px-5 gap-1.5" title="View Your Certificate (Ctrl+Enter)">
                   <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
                   View Your Certificate
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
                 </a>
               `}
             </div>
@@ -2026,10 +2121,10 @@ function drawQuizSession(mod, quiz, prevRecord) {
 
         ${!result ? `
           <div class="m3-quiz-mobile-bar flex justify-end gap-3 mt-2">
-            <button type="submit" class="btn btn-primary btn-lg rounded-full px-8 gap-2" title="Submit Quiz (Ctrl+Enter)">
+            <button type="submit" class="btn btn-primary rounded-full px-8 gap-2" title="Submit Quiz (Ctrl+Enter)">
               <span class="material-symbols-outlined">task_alt</span>
-              <span>Submit Quiz &amp; Check Mastery</span>
-              <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
+              <span>Submit Quiz</span>
+              <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${/mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl'}+Enter</kbd>
             </button>
           </div>
         ` : `
@@ -2048,7 +2143,12 @@ function drawQuizSession(mod, quiz, prevRecord) {
     radio.addEventListener('change', (e) => {
       const qId = e.target.name.slice(2);
       session.answers.set(qId, Number(e.target.value));
-      drawQuizSession(mod, quiz, prevRecord);
+
+      const card = e.target.closest('.m3-surface-container-lowest');
+      card?.querySelectorAll('.m3-quiz-option').forEach((lbl) => {
+        const input = lbl.querySelector('input[type="radio"]');
+        lbl.classList.toggle('is-selected', Boolean(input?.checked));
+      });
     });
   });
 
@@ -2075,14 +2175,15 @@ function drawQuizSession(mod, quiz, prevRecord) {
 
     session.submittedResult = { correctCount, total, scorePercent, passed };
     drawQuizSession(mod, quiz, updated);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-
+    scrollViewToTop();
+    
     if (passed) {
+      const labCodes = labs.map((l) => l.code).join(', ');
       const nextMsg = labs.length
-        ? `You scored ${scorePercent}% on Module ${mod.id}! Practical ${labs.map((l) => l.code).join(', ')} are now unlocked.`
+        ? `${labCodes} ${labs.length === 1 ? 'is' : 'are'} now unlocked.`
         : mod.id === 5
-          ? `You scored ${scorePercent}% on Module 5! Check if all labs are done to claim your Final Certificate.`
-          : `You scored ${scorePercent}% on Module 1! Module 2 is now unlocked.`;
+          ? 'Finish any remaining labs to unlock your Final Certificate.'
+          : 'Module 2 is now unlocked.';
       await triggerCheckpointModal(`Module ${mod.id} Quiz Passed (${scorePercent}%)`, nextMsg, `M${mod.id}_Quiz`);
     }
   });
@@ -2090,7 +2191,7 @@ function drawQuizSession(mod, quiz, prevRecord) {
   const handleRetake = () => {
     appState.quizSession = buildShuffledQuizSession(quiz, true);
     drawQuizSession(mod, quiz, appState.quizzes.get(mod.id));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollViewToTop();
   };
   document.getElementById('retake-quiz-btn')?.addEventListener('click', handleRetake);
   document.getElementById('retake-quiz-bottom-btn')?.addEventListener('click', handleRetake);
@@ -2274,6 +2375,7 @@ async function renderLabView(labId, isBonus = false) {
   const siblingLabs = isBonus ? [] : getLabsByModule(lab.moduleId);
   const currentIdx = siblingLabs.findIndex((l) => l.id === lab.id);
   const nextLab = currentIdx >= 0 && currentIdx + 1 < siblingLabs.length ? siblingLabs[currentIdx + 1] : null;
+  const modSymbol = /mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl';
 
   view.innerHTML = `
     <section class="ide-workspace-root">
@@ -2306,10 +2408,10 @@ async function renderLabView(labId, isBonus = false) {
           </button>
 
           ${!isBonus ? `
-            <button id="ide-verify-btn" type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full px-3.5 gap-1.5" title="Run Automatic Code Check & Advance (Ctrl+Enter)">
+            <button id="ide-verify-btn" type="button" class="btn btn-xs sm:btn-sm ${savedRec?.completed ? 'm3-btn-tonal' : 'btn-primary'} rounded-full px-3.5 gap-1.5" title="Run Automatic Code Check (${modSymbol}+Enter)">
               <span class="material-symbols-outlined icon-18">verified</span>
               <span>Check My Code</span>
-              <kbd class="m3-kbd-on-primary hidden md:inline-flex">Ctrl+Enter</kbd>
+              <kbd id="ide-verify-kbd" class="m3-kbd-on-primary ${savedRec?.completed ? 'hidden' : 'hidden md:inline-flex'}">${modSymbol}+Enter</kbd>
             </button>
           ` : ''}
         </div>
@@ -2328,7 +2430,7 @@ async function renderLabView(labId, isBonus = false) {
       <div id="ide-split-container" class="ide-split-container">
         <!-- Pane 1: Instructions & Automatic Code Check -->
         <div id="pane-instructions" class="ide-pane">
-          <div class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+          <div id="pane-instructions-scroll" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
             <div>
               <div class="text-[11px] font-mono font-bold uppercase tracking-wider m3-text-primary flex items-center gap-1.5">
                 <span class="material-symbols-outlined icon-18">assignment</span>
@@ -2364,26 +2466,46 @@ async function renderLabView(labId, isBonus = false) {
               </div>
             ` : ''}
 
-            <div id="ide-next-cta" class="${savedRec?.completed ? '' : 'hidden'} pt-2 border-t m3-border-subtle">
-              ${nextLab ? `
-                <a href="#/lab/${nextLab.id}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="Next Lab (Ctrl+Enter)">
-                  <span>Next: ${escapeHtml(nextLab.code)}</span>
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
-                  <span class="material-symbols-outlined icon-18">arrow_forward</span>
-                </a>
-              ` : mod && mod.id < 5 ? `
-                <a href="#/module/${mod.id + 1}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="Proceed to Next Module (Ctrl+Enter)">
-                  <span>Proceed to Module ${mod.id + 1}</span>
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
-                  <span class="material-symbols-outlined icon-18">arrow_forward</span>
-                </a>
-              ` : !isBonus && mod && mod.id === 5 ? `
-                <a href="#/certificate" class="btn btn-primary btn-sm rounded-full w-full gap-1.5" title="View Your Certificate (Ctrl+Enter)">
-                  <span class="material-symbols-outlined icon-18">workspace_premium</span>
-                  <span>View Certificate</span>
-                  <kbd class="m3-kbd-on-primary hidden sm:inline-flex">Ctrl+Enter</kbd>
-                </a>
-              ` : ''}
+            <!-- Accomplishment Card & Next Step CTA -->
+            <div id="ide-next-cta" class="${savedRec?.completed ? '' : 'hidden'} pt-2 border-t m3-border-subtle flex flex-col gap-3">
+              <div id="ide-lab-complete-card" class="rounded-2xl p-4 m3-primary-container border border-primary/30 flex flex-col gap-3 shadow-sm">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-primary text-primary-content flex items-center justify-center shrink-0">
+                    <span class="material-symbols-outlined filled icon-20">emoji_events</span>
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="font-bold text-sm leading-tight">${escapeHtml(lab.code)} Completed!</span>
+                      <span class="badge badge-xs badge-success font-mono font-bold">PASSED</span>
+                    </div>
+                    <div id="ide-lab-complete-meta" class="text-xs opacity-85 mt-0.5">
+                      ${savedRec?.completed
+                        ? `${savedRec.passedAssertions || lab.checksDescription.length}/${savedRec.totalAssertions || lab.checksDescription.length} checks verified · Time: ${formatDuration(savedRec.activeTypingSeconds || 0)}`
+                        : 'All checks verified · Ready for the next step'}
+                    </div>
+                  </div>
+                </div>
+
+                ${nextLab ? `
+                  <a id="ide-next-step-link" href="#/lab/${nextLab.id}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5 font-bold" title="Next Lab (${modSymbol}+Enter)">
+                    <span>Continue to ${escapeHtml(nextLab.code)}</span>
+                    <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${modSymbol}+Enter</kbd>
+                    <span class="material-symbols-outlined icon-18">arrow_forward</span>
+                  </a>
+                ` : mod && mod.id < 5 ? `
+                  <a id="ide-next-step-link" href="#/module/${mod.id + 1}" class="btn btn-primary btn-sm rounded-full w-full gap-1.5 font-bold" title="Proceed to Next Module (${modSymbol}+Enter)">
+                    <span>Proceed to Module ${mod.id + 1}</span>
+                    <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${modSymbol}+Enter</kbd>
+                    <span class="material-symbols-outlined icon-18">arrow_forward</span>
+                  </a>
+                ` : !isBonus && mod && mod.id === 5 ? `
+                  <a id="ide-next-step-link" href="#/certificate" class="btn btn-primary btn-sm rounded-full w-full gap-1.5 font-bold" title="View Your Certificate (${modSymbol}+Enter)">
+                    <span class="material-symbols-outlined icon-18">workspace_premium</span>
+                    <span>View Your Certificate</span>
+                    <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${modSymbol}+Enter</kbd>
+                  </a>
+                ` : ''}
+              </div>
             </div>
           </div>
         </div>
@@ -2549,15 +2671,29 @@ async function renderLabView(labId, isBonus = false) {
     },
     onShortcutToggleSidebar: () => toggleCourseSidebar(),
     onShortcutRunAdvance: async (ctrl) => {
-      for (const tabKey of lab.tabs || []) {
-        if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
-      }
       if (isBonus) {
+        for (const tabKey of lab.tabs || []) {
+          if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
+        }
         ctrl.runPreviewOnly();
         showToast('Preview updated.', 'info');
         return;
       }
-      ctrl.pendingShortcutAdvance = true;
+
+      // If lab is already verified and user hasn't edited code since passing, advance immediately
+      const nextLink = document.getElementById('ide-next-step-link');
+      const nextCta = document.getElementById('ide-next-cta');
+      if (nextLink && nextCta && !nextCta.classList.contains('hidden') && !ctrl.dirtySinceVerify) {
+        window.location.hash = nextLink.getAttribute('href') || '#/';
+        return;
+      }
+
+      for (const tabKey of lab.tabs || []) {
+        if (ctrl.editors[tabKey]) ctrl.code[tabKey] = ctrl.editors[tabKey].getValue();
+      }
+      // First press of Ctrl+Enter verifies & reveals the accomplishment card;
+      // second press (when already verified) advances to the next step.
+      ctrl.pendingShortcutAdvance = false;
       ctrl.runAndVerify();
     },
     onVerifyComplete: async (res) => {
@@ -2578,12 +2714,48 @@ async function renderLabView(labId, isBonus = false) {
       }
 
       if (res.allPassed) {
+        ide.dirtySinceVerify = false;
         await refreshStateFromDB();
         renderSidebarAndProgress();
+
         document.getElementById('ide-verified-badge')?.classList.remove('hidden');
         document.getElementById('ide-verified-badge')?.classList.add('inline-flex');
-        document.getElementById('ide-next-cta')?.classList.remove('hidden');
-        showToast(`Nice work! All ${res.totalAssertions} checks passed for ${lab.code}.`, 'success');
+
+        // Transfer primary CTA & Ctrl+Enter ownership from "Check My Code" to "Continue"
+        const verifyBtn = document.getElementById('ide-verify-btn');
+        const verifyKbd = document.getElementById('ide-verify-kbd');
+        if (verifyBtn) {
+          verifyBtn.classList.remove('btn-primary');
+          verifyBtn.classList.add('m3-btn-tonal');
+        }
+        if (verifyKbd) {
+          verifyKbd.classList.add('hidden');
+          verifyKbd.classList.remove('md:inline-flex');
+        }
+
+        const nextCta = document.getElementById('ide-next-cta');
+        const completeCard = document.getElementById('ide-lab-complete-card');
+        const completeMeta = document.getElementById('ide-lab-complete-meta');
+        const latestRec = appState.practicals.get(Number(lab.id));
+        if (completeMeta) {
+          const timeStr = latestRec?.activeTypingSeconds ? ` · Time: ${formatDuration(latestRec.activeTypingSeconds)}` : '';
+          completeMeta.textContent = `${res.passedAssertions}/${res.totalAssertions} checks verified${timeStr}`;
+        }
+        nextCta?.classList.remove('hidden');
+        completeCard?.classList.remove('m3-dom-flash');
+        void completeCard?.offsetWidth;
+        completeCard?.classList.add('m3-dom-flash');
+
+        // Scroll Pane 1 smoothly to reveal the accomplishment card
+        const paneScroll = document.getElementById('pane-instructions-scroll');
+        if (paneScroll) {
+          paneScroll.scrollTo({ top: paneScroll.scrollHeight, behavior: 'smooth' });
+        }
+
+        // On mobile (< 1024px), switch back to Instructions tab so the learner sees the accomplishment card
+        if (window.innerWidth < 1024) {
+          document.querySelector('#mobile-pane-tabs [data-pane="instructions"]')?.click();
+        }
 
         const moduleCompleted = areModuleLabsCompleted(lab.moduleId);
         if (shouldAdvance) {
@@ -2598,8 +2770,18 @@ async function renderLabView(labId, isBonus = false) {
           const unlockedMod = lab.moduleId < 5 ? `Module ${lab.moduleId + 1}` : 'your Certificate';
           await triggerCheckpointModal(
             `Module ${lab.moduleId} Complete`,
-            `Your work is saved in this browser, and ${unlockedMod} is now unlocked.`,
+            `All labs in Module ${lab.moduleId} are verified, and ${unlockedMod} is now unlocked.`,
             `M${lab.moduleId}`
+          );
+        } else {
+          // Single-lab accomplishment modal so the user gets clear celebratory feedback before advancing
+          const nextStepDesc = nextLab
+            ? `All ${res.totalAssertions} checks passed. Next up: ${nextLab.code} (${nextLab.title}).`
+            : `All ${res.totalAssertions} checks passed.`;
+          await triggerCheckpointModal(
+            `${lab.code} Completed (100%)`,
+            nextStepDesc,
+            lab.code.replace(/\s+/g, '_')
           );
         }
       } else {
@@ -2631,6 +2813,25 @@ async function renderLabView(labId, isBonus = false) {
     consoleEl: document.getElementById('ide-console-output'),
     consoleCountEl: document.getElementById('ide-console-count')
   });
+
+  if (!isBonus) {
+    Object.values(ide.editors || {}).forEach((cm) => {
+      cm?.on('change', () => {
+        if (ide.dirtySinceVerify) return;
+        ide.dirtySinceVerify = true;
+        const verifyBtn = document.getElementById('ide-verify-btn');
+        const verifyKbd = document.getElementById('ide-verify-kbd');
+        if (verifyBtn) {
+          verifyBtn.classList.add('btn-primary');
+          verifyBtn.classList.remove('m3-btn-tonal');
+        }
+        if (verifyKbd) {
+          verifyKbd.classList.remove('hidden');
+          verifyKbd.classList.add('md:inline-flex');
+        }
+      });
+    });
+  }
 
   // Resizable 3-Pane Split Controller
   appState.cleanupSplitResizers = initSplitResizers(
@@ -2769,6 +2970,66 @@ async function renderCertificateView() {
   }
 
   const view = document.getElementById('app-view');
+  
+  // Immediate M3 Skeleton Feedback while signing credential
+  view.innerHTML = `
+    <section class="max-w-6xl mx-auto flex flex-col gap-5" aria-busy="true" aria-live="polite" aria-label="Preparing your certificate">
+      <!-- Top Action Bar Skeleton -->
+      <div class="m3-card rounded-3xl p-4 sm:p-5 border m3-border-subtle flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-col gap-2 flex-1 min-w-[220px]">
+          <div class="m3-skeleton h-7 w-64 rounded-full"></div>
+          <div class="m3-skeleton h-4 w-80 max-w-full rounded-full"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="m3-skeleton h-10 w-28 rounded-full"></div>
+          <div class="m3-skeleton h-10 w-36 rounded-full"></div>
+        </div>
+      </div>
+
+      <!-- A4 Landscape Certificate Frame Skeleton -->
+      <div class="m3-surface-container-lowest rounded-3xl p-6 sm:p-10 border m3-border-subtle flex flex-col justify-between min-h-[420px] sm:min-h-[540px] gap-8">
+        <!-- Header Row -->
+        <div class="flex items-center justify-between">
+          <div class="m3-skeleton h-5 w-24 rounded-full"></div>
+          <div class="m3-skeleton h-4 w-44 rounded-full"></div>
+        </div>
+
+        <!-- Centerpiece Typography Skeleton -->
+        <div class="flex flex-col items-center text-center gap-3.5 my-auto py-4">
+          <div class="m3-skeleton h-10 w-64 rounded-2xl"></div>
+          <div class="m3-skeleton h-4 w-32 rounded-full mt-1"></div>
+          <div class="m3-skeleton h-9 w-72 sm:w-80 rounded-2xl"></div>
+          <div class="m3-skeleton h-4 w-40 rounded-full"></div>
+          <div class="m3-skeleton h-4 w-96 max-w-full rounded-full mt-2"></div>
+          <div class="m3-skeleton h-6 w-80 max-w-full rounded-xl"></div>
+          <div class="m3-skeleton h-5 w-72 max-w-full rounded-full mt-2"></div>
+        </div>
+
+        <!-- Footer 3-Column Skeleton (Authority, QR Box, Credential ID) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 items-end gap-6 pt-4 border-t m3-border-subtle">
+          <div class="flex flex-col gap-2">
+            <div class="m3-skeleton h-4 w-40 rounded-full"></div>
+            <div class="m3-skeleton h-3.5 w-36 rounded-full"></div>
+            <div class="m3-skeleton h-3 w-28 rounded-full"></div>
+          </div>
+          <div class="flex flex-col items-center gap-2">
+            <div class="m3-skeleton w-[104px] h-[104px] rounded-2xl"></div>
+            <div class="m3-skeleton h-3 w-20 rounded-full"></div>
+          </div>
+          <div class="flex flex-col sm:items-end gap-2">
+            <div class="m3-skeleton h-3.5 w-32 rounded-full"></div>
+            <div class="m3-skeleton h-3 w-44 rounded-full"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Verification Code Drawer Skeleton -->
+      <div class="m3-surface-container-lowest rounded-3xl px-5 py-4 border m3-border-subtle flex items-center justify-between">
+        <div class="m3-skeleton h-4 w-72 max-w-[80%] rounded-full"></div>
+        <div class="m3-skeleton h-5 w-5 rounded-full"></div>
+      </div>
+    </section>
+  `;
   const fullState = await exportFullState();
   let generated;
   try {
@@ -3957,8 +4218,47 @@ function syncShortcutPlatformLabels() {
   if (railBtn) railBtn.title = `Toggle Sidebar (${modLabel}+B)`;
 }
 
+// ============================================================================
+// Keyboard shortcut show only when Ctrl is pressed
+// ============================================================================
+
+function initCtrlHintReveal(delayMs = 300) {
+  let revealTimer = null;
+
+  const setModHeld = (held) => {
+    clearTimeout(revealTimer);
+    if (held) {
+      if (document.documentElement.classList.contains('is-mod-key-held')) return;
+      revealTimer = setTimeout(() => {
+        document.documentElement.classList.add('is-mod-key-held');
+      }, delayMs);
+    } else {
+      document.documentElement.classList.remove('is-mod-key-held');
+    }
+  };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return; // Ignore auto-repeat keydown events while holding Ctrl
+    if (e.key === 'Control' || e.key === 'Meta' || e.ctrlKey || e.metaKey) {
+      setModHeld(true);
+    }
+  }, { passive: true });
+
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Control' || e.key === 'Meta' || (!e.ctrlKey && !e.metaKey)) {
+      setModHeld(false);
+    }
+  }, { passive: true });
+
+  window.addEventListener('blur', () => setModHeld(false));
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) setModHeld(false);
+  });
+}
+
 function initKeyboardShortcuts() {
   syncShortcutPlatformLabels();
+  initCtrlHintReveal();
 
   window.addEventListener('keydown', (e) => {
     const key = e.key;
