@@ -398,7 +398,7 @@ async function triggerCheckpointModal(title, description, moduleCode = 'M1') {
   const fullState = await exportFullState();
   const token = await encodeBackupToken(fullState);
   const safeRoll = (fullState.profile?.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
-  const filename = `${safeRoll}_druba-web_${moduleCode}.json`;
+  const filename = `${safeRoll}_druba-web_${moduleCode}.vwfd`;
 
   // Extract percentage score (e.g. "Module 1 Quiz Passed (100%)" -> "100%")
   const scoreMatch = String(title || '').match(/(\d+%)/);
@@ -434,14 +434,14 @@ async function triggerCheckpointModal(title, description, moduleCode = 'M1') {
 
   document.getElementById('checkpoint-token-preview').value = token;
   document.getElementById('checkpoint-filename-badge').textContent = filename;
-  document.getElementById('checkpoint-download-name').textContent = 'Download .json';
+  document.getElementById('checkpoint-download-name').textContent = 'Download .vwfd';
 
   const copyBtn = document.getElementById('checkpoint-copy-token-btn');
   copyBtn.onclick = () => copyToClipboard(token, 'Backup text copied! Save it in your notes or messages.');
 
   const dlBtn = document.getElementById('checkpoint-download-btn');
   dlBtn.onclick = () => {
-    downloadFile(filename, JSON.stringify(fullState, null, 2));
+    downloadFile(filename, token);
     showToast(`Downloaded ${filename}`, 'success');
   };
 
@@ -588,9 +588,9 @@ function showBackupDropzoneError(message) {
 
 async function handleBackupFile(file) {
   if (!file) return;
-  const nameOk = /\.json$/i.test(file.name) || file.type === 'application/json';
-  if (!nameOk) {
-    showBackupDropzoneError('Please choose a .json progress file.');
+  const isVwfd = /\.vwfd$/i.test(file.name);
+  if (!isVwfd) {
+    showBackupDropzoneError('Only .vwfd backup files are accepted. JSON files are not supported.');
     return;
   }
   if (file.size > BACKUP_MAX_BYTES) {
@@ -599,13 +599,10 @@ async function handleBackupFile(file) {
   }
   try {
     const text = await file.text();
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      throw new Error('This file is not valid JSON.');
+    if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      throw new Error('Raw JSON files are not allowed. Please select an authentic .vwfd backup file.');
     }
-    assertValidBackupState(parsed);
+    const parsed = assertValidBackupState(await decodeBackupToken(text));
     backupUi.fileState = parsed;
     backupUi.activeSource = 'file';
     const zone = document.getElementById('bk-dropzone');
@@ -646,7 +643,7 @@ async function validateBackupText() {
     if (seq !== backupUi.textValidationSeq) return;
     backupUi.textState = null;
     if (backupUi.activeSource === 'text') backupUi.activeSource = backupUi.fileState ? 'file' : null;
-    status.textContent = 'Backup text not recognized. Paste the full text exactly as copied.';
+    status.textContent = err.message || 'Backup text not recognized. Paste the full text exactly as copied.';
     status.classList.add('is-invalid');
   }
   updateBackupImportButton();
@@ -816,9 +813,10 @@ function bindBackupModal() {
   // Save Backup: download
   document.getElementById('modal-export-json-btn')?.addEventListener('click', async () => {
     const state = await exportFullState();
+    const token = await encodeBackupToken(state);
     const safeRoll = (state.profile?.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${safeRoll}_druba-web.json`;
-    downloadFile(filename, JSON.stringify(state, null, 2));
+    const filename = `${safeRoll}_druba-web.vwfd`;
+    downloadFile(filename, token);
     showToast(`Downloaded ${filename}`, 'success');
   });
 

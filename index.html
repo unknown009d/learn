@@ -357,7 +357,7 @@
         <div class="m3-accordion-body px-4 py-3.5 flex flex-col gap-2.5">
           <div class="flex items-center justify-between gap-2 text-[11px] m3-text-muted">
             <span class="shrink-0">Backup file:</span>
-            <span id="checkpoint-filename-badge" class="font-mono font-semibold truncate">Student_M1.json</span>
+            <span id="checkpoint-filename-badge" class="font-mono font-semibold truncate">Student_M1.vwfd</span>
           </div>
 
           <textarea id="checkpoint-token-preview" readonly rows="3" class="textarea textarea-bordered w-full font-mono text-[11px] leading-snug rounded-xl m3-surface-container-lowest"></textarea>
@@ -369,7 +369,7 @@
             </button>
             <button id="checkpoint-download-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full flex-nowrap whitespace-nowrap gap-1.5">
               <span class="material-symbols-outlined icon-18">download</span>
-              <span id="checkpoint-download-name">Download .json</span>
+              <span id="checkpoint-download-name">Download .vwfd</span>
             </button>
           </div>
         </div>
@@ -422,11 +422,11 @@
       <!-- Tab 1: Load Progress -->
       <section id="bk-panel-load" class="bk-panel" role="tabpanel" aria-labelledby="bk-tab-load">
         <div class="bk-body">
-          <input id="modal-restore-file" type="file" accept=".json,application/json" class="hidden" tabindex="-1"
+          <input id="modal-restore-file" type="file" accept=".vwfd" class="hidden" tabindex="-1"
             aria-hidden="true">
 
           <div id="bk-dropzone" class="bk-dropzone" role="button" tabindex="0"
-            aria-label="Upload a saved progress file. Drag and drop or press Enter to browse."
+            aria-label="Upload a saved progress file (.vwfd). Drag and drop or press Enter to browse."
             aria-describedby="bk-meta-row">
             <!-- Empty State -->
             <div class="bk-dz-empty">
@@ -451,7 +451,7 @@
           </div>
 
           <div id="bk-meta-row" class="bk-meta-row">
-            <span>Supported format: .json</span>
+            <span>Supported format: .vwfd</span>
             <span>Maximum size: 2MB</span>
           </div>
 
@@ -489,7 +489,7 @@
           </div>
           <button id="modal-export-json-btn" type="button" class="btn btn-primary rounded-full gap-2 w-full">
             <span class="material-symbols-outlined icon-20">download</span>
-            Download Progress File (.json)
+            Download Progress File (.vwfd)
           </button>
           <button id="modal-copy-token-btn" type="button"
             class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined">

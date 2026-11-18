@@ -16,8 +16,9 @@ const SIGNING_PUBLIC_JWK = {
 
 const KEY_PREFIX_GZIP = 'druba-web-v1.';
 const KEY_PREFIX_RAW = 'druba-web-v1r.';
-const BACKUP_PREFIX_GZIP = 'druba-web-bak1.';
-const BACKUP_PREFIX_RAW = 'druba-web-bak1r.';
+export const VWFD_BACKUP_SECRET = 'DRUBA_WEB_FOUNDATIONS_VWFD_KEY_2026';
+export const VWFD_PREFIX_GZIP = 'vwfd-v1.';
+export const VWFD_PREFIX_RAW = 'vwfd-v1r.';
 
 function bytesToBase64Url(bytes) {
   let binary = '';
@@ -361,37 +362,88 @@ export async function verifyCompactQrToken(tokenString) {
   }
 }
 
+function canonicalizeForSigning(val) {
+  if (val === null || typeof val !== 'object') {
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(canonicalizeForSigning);
+  }
+  const sorted = {};
+  for (const k of Object.keys(val).sort()) {
+    sorted[k] = canonicalizeForSigning(val[k]);
+  }
+  return sorted;
+}
+
+export async function computeVwfdSignature(payload) {
+  const canonical = canonicalizeForSigning(payload);
+  const jsonStr = JSON.stringify(canonical);
+  return sha256Hex(`${jsonStr}|${VWFD_BACKUP_SECRET}`);
+}
+
 export async function encodeBackupToken(fullState) {
-  const json = JSON.stringify(fullState);
-  const { compressed, bytes } = await gzipText(json);
-  const prefix = compressed ? BACKUP_PREFIX_GZIP : BACKUP_PREFIX_RAW;
+  const signature = await computeVwfdSignature(fullState);
+  const envelope = {
+    format: 'VWFD',
+    v: 1,
+    issuedAt: new Date().toISOString(),
+    payload: fullState,
+    signature
+  };
+  const envelopeJson = JSON.stringify(envelope);
+  const { compressed, bytes } = await gzipText(envelopeJson);
+  const prefix = compressed ? VWFD_PREFIX_GZIP : VWFD_PREFIX_RAW;
   return prefix + bytesToBase64Url(bytes);
 }
 
 export async function decodeBackupToken(tokenString) {
   const trimmed = String(tokenString || '').trim();
   if (!trimmed) {
-    throw new Error('Please choose a saved progress file or paste your backup text first.');
+    throw new Error('Please choose a saved progress file (.vwfd) or paste your backup text first.');
   }
 
-  if (trimmed.startsWith('{')) {
-    return JSON.parse(trimmed);
+  // Strictly reject raw JSON input from users
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    throw new Error('Raw JSON files or text are not accepted. Only authentic .vwfd backup files are allowed.');
   }
 
   let isCompressed = true;
   let body = '';
 
-  if (trimmed.startsWith(BACKUP_PREFIX_GZIP)) {
+  if (trimmed.startsWith(VWFD_PREFIX_GZIP)) {
     isCompressed = true;
-    body = trimmed.slice(BACKUP_PREFIX_GZIP.length);
-  } else if (trimmed.startsWith(BACKUP_PREFIX_RAW)) {
+    body = trimmed.slice(VWFD_PREFIX_GZIP.length);
+  } else if (trimmed.startsWith(VWFD_PREFIX_RAW)) {
     isCompressed = false;
-    body = trimmed.slice(BACKUP_PREFIX_RAW.length);
+    body = trimmed.slice(VWFD_PREFIX_RAW.length);
   } else {
-    throw new Error('Could not recognize this backup. Upload a saved progress file (.json) or paste the full backup text.');
+    throw new Error('Could not recognize this backup. Only authentic .vwfd backup files and tokens are supported.');
   }
 
-  const bytes = base64UrlToBytes(body);
-  const json = await gunzipBytes(bytes, isCompressed);
-  return JSON.parse(json);
+  let envelope;
+  try {
+    const bytes = base64UrlToBytes(body);
+    const jsonStr = await gunzipBytes(bytes, isCompressed);
+    envelope = JSON.parse(jsonStr);
+  } catch (err) {
+    throw new Error('Could not decompress or read this .vwfd backup. The file may be corrupted.');
+  }
+
+  if (!envelope || typeof envelope !== 'object' || !envelope.payload || typeof envelope.signature !== 'string') {
+    throw new Error('This .vwfd backup file is malformed or missing cryptographic signature records.');
+  }
+
+  if (envelope.format !== 'VWFD') {
+    throw new Error('Invalid file format. Only authentic .vwfd backup files are supported.');
+  }
+
+  const expectedSignature = await computeVwfdSignature(envelope.payload);
+  if (envelope.signature !== expectedSignature) {
+    throw new Error('Tamper detection alert: This backup file has an invalid or forged signature.');
+  }
+
+  return envelope.payload;
 }
+
+export { encodeBackupToken as encodeVwfdBackup, decodeBackupToken as decodeVwfdBackup };
