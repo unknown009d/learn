@@ -169,6 +169,97 @@
 }
 
 /* ==========================================================================
+   Theme-Aware Thin Scrollbars (Material Design 3 + DaisyUI 4)
+   ========================================================================== */
+
+:root,
+[data-theme="m3-light"],
+[data-theme="m3-dark"] {
+  --scrollbar-thumb: color-mix(in srgb, var(--m3-text) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--m3-primary) 55%, var(--m3-text) 25%);
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Subtle auto-hiding scrollbar for navigation rail & drawers (zero gutter jump) */
+.scroll-subtle,
+.m3-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  overflow-y: auto;
+  overflow-y: overlay;
+}
+
+.scroll-subtle:hover,
+.scroll-subtle:focus-within,
+.m3-sidebar:hover,
+.m3-sidebar:focus-within {
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* WebKit / Chromium / Safari */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.scroll-subtle::-webkit-scrollbar-thumb,
+.m3-sidebar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+.scroll-subtle:hover::-webkit-scrollbar-thumb,
+.scroll-subtle:focus-within::-webkit-scrollbar-thumb,
+.m3-sidebar:hover::-webkit-scrollbar-thumb,
+.m3-sidebar:focus-within::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+
+.m3-code-pre {
+  --scrollbar-thumb: color-mix(in srgb, var(--m3-code-fg) 24%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--m3-code-fg) 45%, transparent);
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* Narrower than any real phone (under 300 px): nothing can be laid out there. Druba's Signature */
+@media screen and (max-width: 299.98px) {
+  body > * {
+    display: none !important;
+  }
+  body::before {
+    content: 'Seriously?';
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+}
+
+/* ==========================================================================
    Typography & Base Constraints
    ========================================================================== */
 
@@ -222,6 +313,10 @@ code, pre, .font-mono {
 .material-symbols-outlined.icon-18 { font-size: 18px; }
 .material-symbols-outlined.icon-20 { font-size: 20px; }
 .material-symbols-outlined.icon-24 { font-size: 24px; }
+.material-symbols-outlined.icon-48 { font-size: 48px; }
+.material-symbols-outlined.icon-64 { font-size: 64px; }
+.material-symbols-outlined.icon-72 { font-size: 72px; }
+.material-symbols-outlined.icon-128 { font-size: 128px; }
 
 /* ==========================================================================
    Material 3 Surface Helpers
@@ -255,7 +350,7 @@ code, pre, .font-mono {
 
 .modal-box,
 .m3-modal-box {
-  background-color: var(--surface-container-highest) !important;
+  background-color: var(--m3-surface-container) !important;
   color: var(--m3-text) !important;
   border: 1px solid var(--m3-outline-variant) !important;
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35) !important;
@@ -273,6 +368,24 @@ code, pre, .font-mono {
 dialog.modal::backdrop,
 .modal-backdrop {
   background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Crisp, elevated M3 Light Mode surface for dialogs & dropdowns (strictly scoped to Light Mode) */
+:root:not([data-theme="m3-dark"]) .modal-box,
+:root:not([data-theme="m3-dark"]) .m3-modal-box,
+[data-theme="m3-light"] .modal-box,
+[data-theme="m3-light"] .m3-modal-box {
+  background-color: #f8fbf8 !important;
+  border-color: #cbd5cc !important;
+  box-shadow: 0 24px 48px rgba(15, 23, 18, 0.18), 0 4px 12px rgba(15, 23, 18, 0.08) !important;
+}
+
+/* Lighter backdrop in Light Mode only */
+:root:not([data-theme="m3-dark"]) dialog.modal::backdrop,
+:root:not([data-theme="m3-dark"]) .modal-backdrop,
+[data-theme="m3-light"] dialog.modal::backdrop,
+[data-theme="m3-light"] .modal-backdrop {
+  background-color: rgba(15, 23, 18, 0.34) !important;
 }
 
 #toast-container {
@@ -372,7 +485,7 @@ dialog.modal::backdrop,
   filter: brightness(1.08);
 }
 
-.m3-border-subtle { border-color: var(--m3-outline-variant) !important; }
+.m3-border-subtle, .lg\:m3-border-subtle { border-color: var(--m3-outline-variant) !important; }
 .m3-text-primary { color: var(--m3-primary); }
 .m3-text-muted { color: var(--m3-text-muted); }
 
@@ -609,9 +722,14 @@ dialog.modal::backdrop,
   display: none;
   content: '';
 }
-.m3-accordion > summary.m3-accordion-trigger:hover,
-.m3-accordion > summary.m3-accordion-trigger:focus-visible {
+.m3-accordion > summary.m3-accordion-trigger:hover {
   background-color: var(--m3-state-hover);
+}
+.m3-accordion > summary.m3-accordion-trigger:focus,
+.m3-accordion > summary.m3-accordion-trigger:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: var(--m3-state-focus);
 }
 .m3-accordion-chevron {
   transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
@@ -1903,4 +2021,182 @@ body.is-resizing iframe {
   #backup-modal .bk-body { padding: 16px 20px 8px; }
   #backup-modal .bk-footer { padding: 14px 20px 20px; }
   #backup-modal .bk-tab { font-size: 13px; padding: 0 8px; }
+}
+
+.codeicon {
+  padding: 4rem;
+  font-size: 8rem;
+  color: transparent;
+  background-color: var(--m3-primary);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.35'/%3E%3C/svg%3E");
+  background-blend-mode: overlay;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@media only screen and (max-width: 900px) {
+  .codeicon {
+    font-size: 6rem;
+  }
+}
+
+@media only screen and (max-width: 576px) {
+  .codeicon {
+    padding: 2rem;
+    font-size: 4rem;
+  }
+}
+
+/* Hide button shortcut pills until Ctrl / Cmd is held */
+.m3-kbd-on-primary {
+  display: none !important;
+}
+
+html.is-mod-key-held .m3-kbd-on-primary {
+  display: inline-flex !important;
+}
+
+/* ==========================================================================
+   Checkpoint Accomplishment Modal & Perimeter Firework Burst
+   ========================================================================== */
+
+@keyframes ckBadgeBounce {
+  0% { transform: scale(0.6) rotate(-8deg); }
+  65% { transform: scale(1.08) rotate(3deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.ck-hero-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  animation: ckBadgeBounce 520ms cubic-bezier(0.2, 1.2, 0.3, 1) 80ms both;
+}
+
+.ck-hero-badge .material-symbols-outlined {
+  font-size: 32px;
+}
+
+.ck-burst-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.ck-particle {
+  position: fixed;
+  left: var(--sx, 50vw);
+  top: var(--sy, 50vh);
+  width: var(--size, 8px);
+  height: var(--size, 8px);
+  border-radius: var(--radius, 9999px);
+  background-color: var(--color, #34d375);
+  box-shadow: 0 0 80px var(--color, #34d375);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: ckParticleFly var(--dur, 1050ms) cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0ms) forwards;
+}
+
+@keyframes ckParticleFly {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.85) rotate(var(--rot, 180deg));
+  }
+}
+
+/* Checkpoint Modal Light Mode Polish (strictly scoped to Light Mode) */
+:root:not([data-theme="m3-dark"]) #checkpoint-modal .m3-tonal-badge,
+[data-theme="m3-light"] #checkpoint-modal .m3-tonal-badge {
+  background-color: #e3efe5;
+  color: #0b4f26;
+  border: 1px solid #c2dac6;
+}
+
+:root:not([data-theme="m3-dark"]) #checkpoint-modal #checkpoint-progress-pill,
+[data-theme="m3-light"] #checkpoint-modal #checkpoint-progress-pill {
+  background-color: #ffffff;
+  border-color: #d2ddd4;
+}
+
+:root:not([data-theme="m3-dark"]) #checkpoint-modal #checkpoint-backup-accordion,
+[data-theme="m3-light"] #checkpoint-modal #checkpoint-backup-accordion {
+  background-color: #ffffff;
+  border-color: #d2ddd4;
+}
+
+/* Reduce excessive glow in Light Mode so confetti looks crisp instead of hazy */
+:root:not([data-theme="m3-dark"]) .ck-particle,
+[data-theme="m3-light"] .ck-particle {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+}
+
+/* ==========================================================================
+   Material Design 3 Skeleton Shimmer Placeholder
+   ========================================================================== */
+
+.m3-skeleton {
+  background-color: var(--m3-surface-container-high);
+  border-radius: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.m3-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--m3-text) 7%, transparent),
+    transparent
+  );
+  animation: m3SkeletonShimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes m3SkeletonShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-skeleton::after {
+    animation: none;
+  }
+}
+
+/* ==========================================================================
+   Material Design 3 Radial Progress Track Ring
+   ========================================================================== */
+
+.radial-progress {
+  position: relative;
+  background-color: transparent;
+}
+
+.radial-progress::before {
+  background:
+    radial-gradient(farthest-side, currentColor 98%, #0000) top / var(--thickness) var(--thickness) no-repeat,
+    conic-gradient(
+      currentColor calc(var(--value) * 1%),
+      var(--m3-surface-container-highest) 0
+    );
 }

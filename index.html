@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="m3-light">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vanilla Web Foundations — druba.in · Learn</title>
-  <meta name="description" content="Interactive learning workspace for Vanilla Web Foundations — HTML, CSS, and JavaScript basics by druba.in.">
+  <title>Vanilla Web Foundations | druba.in</title>
+  <meta name="description"
+    content="Interactive learning workspace for Vanilla Web Foundations — HTML, CSS, and JavaScript basics by druba.in.">
   <link rel="canonical" href="https://druba.in/learn/">
 
   <!-- Open Graph / Social Sharing -->
@@ -28,8 +30,12 @@
   <!-- Google Fonts: Google Sans, Plus Jakarta Sans, Inter, JetBrains Mono & Material Symbols Outlined -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block"
+    rel="stylesheet">
 
   <!-- DaisyUI 4 + Tailwind CSS Play CDN -->
   <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" type="text/css">
@@ -86,13 +92,14 @@
         }
         var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.setAttribute('data-theme', prefersDark ? 'm3-dark' : 'm3-light');
-      } catch (e) {}
+      } catch (e) { }
     })();
   </script>
 
   <!-- Material Design 3 Theme & Full-Viewport Workspace Styles -->
   <link rel="stylesheet" href="./css/style.css">
 </head>
+
 <body class="m3-body min-h-screen antialiased">
 
   <!-- Material Design 3 Font & Icon Readiness Splash Overlay -->
@@ -103,54 +110,70 @@
         background: #111411 !important;
         color: #e1e4df !important;
       }
+
       [data-theme="m3-dark"] #app-boot-loader .m3-boot-card {
-        background: #181c18 !important;
-        border-color: #2c332d !important;
-        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important;
+        background: #111411 !important;
+        /* box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important; */
       }
+
       [data-theme="m3-dark"] #app-boot-loader .m3-boot-ring-track {
         stroke: #262c27 !important;
       }
+
       [data-theme="m3-dark"] #app-boot-loader .m3-boot-ring-arc {
         stroke: #34d375 !important;
       }
+
       [data-theme="m3-dark"] #app-boot-loader .m3-boot-sub {
         color: #9ca69d !important;
       }
+
       @keyframes m3BootRotate {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+          transform: rotate(0deg);
+        }
+
+        100% {
+          transform: rotate(360deg);
+        }
       }
+
       @media print {
-        #app-boot-loader { display: none !important; }
+        #app-boot-loader {
+          display: none !important;
+        }
       }
     </style>
     <div class="m3-boot-card"
-      style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:28px 32px;border-radius:24px;background:#eff5ef;border:1px solid #c1c9bf;box-shadow:0 6px 24px rgba(14,122,58,0.08);min-width:260px;text-align:center;">
+      style="display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:28px 32px;border-radius:24px;background:#F6FAF6;min-width:260px;text-align:center;">
       <svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true"
-        style="display:block;animation:m3BootRotate 0.95s linear infinite;">
+        style="display:block;animation:m3BootRotate 0.95s linear infinite;margin-bottom: 1rem;">
         <circle class="m3-boot-ring-track" cx="21" cy="21" r="17" stroke="#d1e8d4" stroke-width="3.5" />
-        <path class="m3-boot-ring-arc" d="M21 4a17 17 0 0 1 17 17" stroke="#0e7a3a" stroke-width="3.5" stroke-linecap="round" />
+        <path class="m3-boot-ring-arc" d="M21 4a17 17 0 0 1 17 17" stroke="#0e7a3a" stroke-width="3.5"
+          stroke-linecap="round" />
       </svg>
       <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;">
         Loading Workspace...
       </div>
       <div class="m3-boot-sub" style="font-size:12px;color:#414942;line-height:1.4;">
-        Vanilla Web Foundations &middot; Initializing Awesomeness!
+        Vanilla Web Foundations
       </div>
     </div>
   </div>
 
   <!-- Top Material Design 3 Navigation Bar (56px) -->
-  <header class="m3-topbar navbar sticky top-0 z-40 h-14 min-h-[56px] px-2.5 sm:px-3.5 gap-2 justify-between overflow-visible no-print">
+  <header
+    class="m3-topbar navbar sticky top-0 z-40 h-14 min-h-[56px] px-2.5 sm:px-3.5 gap-2 justify-between overflow-visible no-print">
     <div class="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0 overflow-hidden">
       <!-- Mobile Drawer Trigger -->
-      <button id="drawer-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle lg:hidden shrink-0" aria-label="Open Navigation Menu">
+      <button id="drawer-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle lg:hidden shrink-0"
+        aria-label="Open Navigation Menu">
         <span class="material-symbols-outlined icon-20">menu</span>
       </button>
 
       <!-- Desktop Shrinkable Rail Trigger -->
-      <button id="rail-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle hidden lg:inline-flex shrink-0" aria-label="Toggle Navigation Rail" title="Toggle Sidebar (Ctrl+B)">
+      <button id="rail-toggle-btn" type="button" class="btn btn-sm btn-ghost btn-circle hidden lg:inline-flex shrink-0"
+        aria-label="Toggle Navigation Rail" title="Toggle Sidebar (Ctrl+B)">
         <span id="rail-toggle-icon" class="material-symbols-outlined icon-20">dock_to_left</span>
       </button>
 
@@ -159,48 +182,54 @@
           Vanilla Web Foundations
         </a>
         <span class="text-xs m3-text-muted truncate hidden sm:inline">
-          by <a href="https://druba.in" target="_blank" rel="noopener noreferrer" class="hover:underline font-medium">druba.in</a>
+          by <a href="https://druba.in" target="_blank" rel="noopener noreferrer"
+            class="hover:underline font-medium">druba.in</a>
         </span>
       </div>
     </div>
 
     <!-- Compact Mastery Pill + Desktop Actions + Mobile Menu -->
     <div class="flex items-center gap-1.5 shrink-0">
-      <div class="hidden sm:flex items-center gap-1.5 m3-surface-container px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0" title="Overall Course Progress">
+      <div
+        class="hidden sm:flex items-center gap-1.5 m3-surface-container px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0"
+        title="Overall Course Progress">
         <span class="material-symbols-outlined m3-text-primary" style="font-size:15px">workspace_premium</span>
         <span id="nav-progress-label" class="font-mono font-semibold">0/13 &middot; 0%</span>
       </div>
 
       <!-- Desktop Horizontal Actions (>= 1024px) -->
       <div class="hidden lg:flex items-center gap-1 shrink-0">
-        <button id="open-backup-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap js-open-backup" title="Save or Load Progress">
+        <button id="open-backup-btn" type="button"
+          class="btn btn-sm m3-btn-tonal rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap js-open-backup"
+          title="Save or Load Progress">
           <span class="material-symbols-outlined icon-18">cloud_sync</span>
           <span>Save / Load</span>
         </button>
 
-        <a href="#/manual" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap" title="Printable Lab Manual">
-          <span class="material-symbols-outlined icon-18">menu_book</span>
-          <span>Lab Manual</span>
-        </a>
-
-        <a href="#/verify" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap" title="Verify Certificate">
+        <a href="#/verify" class="btn btn-sm btn-ghost rounded-full gap-1.5 px-3 shrink-0 whitespace-nowrap"
+          title="Verify Certificate">
           <span class="material-symbols-outlined icon-18">verified_user</span>
           <span>Verify</span>
         </a>
 
-        <button id="theme-toggle-btn" type="button" class="btn btn-sm btn-circle m3-surface-container-high border m3-border-subtle shrink-0 js-theme-toggle" aria-label="Toggle Theme" title="Switch Light / Dark Mode">
+        <button id="theme-toggle-btn" type="button"
+          class="btn btn-sm btn-circle m3-surface-container-high border m3-border-subtle shrink-0 js-theme-toggle"
+          aria-label="Toggle Theme" title="Switch Light / Dark Mode">
           <span id="theme-toggle-icon" class="material-symbols-outlined icon-18">dark_mode</span>
         </button>
       </div>
 
       <!-- Mobile / Tablet Compact Menu (< 1024px) -->
       <div id="nav-settings-dropdown" class="relative lg:hidden">
-        <button id="nav-settings-btn" type="button" class="btn btn-sm btn-ghost btn-circle shrink-0" aria-label="Workspace Menu" aria-expanded="false" aria-haspopup="menu" title="Menu">
+        <button id="nav-settings-btn" type="button" class="btn btn-sm btn-ghost btn-circle shrink-0"
+          aria-label="Workspace Menu" aria-expanded="false" aria-haspopup="menu" title="Menu">
           <span class="material-symbols-outlined icon-20">more_vert</span>
         </button>
 
-        <div id="nav-settings-menu" role="menu" class="dropdown-content hidden absolute right-0 top-full mt-2 w-56 p-1.5 rounded-2xl border m3-border-subtle flex flex-col gap-0.5 text-sm">
-          <button type="button" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-backup">
+        <div id="nav-settings-menu" role="menu"
+          class="dropdown-content hidden absolute right-0 top-full mt-2 w-56 p-1.5 rounded-2xl border m3-border-subtle flex flex-col gap-0.5 text-sm">
+          <button type="button" role="menuitem"
+            class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-backup">
             <span class="material-symbols-outlined icon-18 m3-text-primary">cloud_sync</span>
             <span>Save / Load Progress</span>
           </button>
@@ -212,7 +241,8 @@
             <span class="material-symbols-outlined icon-18 m3-text-primary">verified_user</span>
             <span>Verify</span>
           </a>
-          <button type="button" role="menuitem" class="m3-menu-item flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-shortcuts">
+          <button type="button" role="menuitem"
+            class="m3-menu-item flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl text-left w-full js-open-shortcuts">
             <span class="flex items-center gap-2.5">
               <span class="material-symbols-outlined icon-18 m3-text-primary">keyboard</span>
               <span>Keyboard Shortcuts</span>
@@ -220,7 +250,8 @@
             <kbd class="m3-kbd">?</kbd>
           </button>
           <div class="my-1 border-t m3-border-subtle"></div>
-          <button type="button" role="menuitem" class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-theme-toggle">
+          <button type="button" role="menuitem"
+            class="m3-menu-item flex items-center gap-2.5 px-3 py-2 rounded-xl text-left w-full js-theme-toggle">
             <span class="material-symbols-outlined icon-18 m3-text-primary js-theme-toggle-icon">dark_mode</span>
             <span id="theme-toggle-label">Dark Mode</span>
           </button>
@@ -235,7 +266,8 @@
     <div id="drawer-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"></div>
 
     <!-- Dual-State Shrinkable Navigation Rail / Drawer -->
-    <aside id="nav-drawer" class="m3-sidebar no-print fixed lg:relative top-0 left-0 z-50 lg:z-20 h-screen lg:h-full w-[264px] max-w-[85vw] overflow-y-auto overflow-x-hidden p-3 -translate-x-full lg:translate-x-0 flex flex-col gap-3 shrink-0">
+    <aside id="nav-drawer"
+      class="m3-sidebar no-print fixed lg:relative top-0 left-0 z-50 lg:z-20 h-screen lg:h-full w-[264px] max-w-[85vw] overflow-y-auto overflow-x-hidden p-3 -translate-x-full lg:translate-x-0 flex flex-col gap-3 shrink-0">
       <div class="flex items-center justify-between lg:hidden pb-2 border-b m3-border-subtle">
         <span class="font-bold text-sm">Modules</span>
         <button id="drawer-close-btn" type="button" class="btn btn-ghost btn-sm btn-circle" aria-label="Close Menu">
@@ -255,12 +287,15 @@
 
       <!-- Drawer Footer -->
       <div class="pt-2.5 border-t m3-border-subtle flex flex-col gap-1 text-xs m3-text-muted">
-        <a href="#/bonus" class="m3-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl rail-link" title="Bootstrap 5 Sandbox (Optional)">
+        <a href="#/bonus" class="m3-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl rail-link"
+          title="Bootstrap 5 Sandbox (Optional)">
           <span class="material-symbols-outlined icon-20 shrink-0">auto_awesome</span>
           <span class="font-medium truncate rail-expanded-only">Bootstrap Sandbox</span>
-          <span class="badge badge-xs m3-tonal-badge ml-auto rail-expanded-only">Optional</span>
+          <span class="badge badge-xs py-2.5 m3-tonal-badge ml-auto rail-expanded-only">Optional</span>
         </a>
-        <button id="drawer-shortcuts-btn" type="button" class="m3-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl rail-link text-left w-full js-open-shortcuts" title="Keyboard Shortcuts (?)">
+        <button id="drawer-shortcuts-btn" type="button"
+          class="m3-nav-item flex items-center gap-2.5 px-2.5 py-2 rounded-xl rail-link text-left w-full js-open-shortcuts"
+          title="Keyboard Shortcuts (?)">
           <span class="material-symbols-outlined icon-20 shrink-0">keyboard</span>
           <span class="font-medium truncate rail-expanded-only">Shortcuts</span>
           <kbd class="m3-kbd ml-auto rail-expanded-only">?</kbd>
@@ -279,49 +314,81 @@
 
   <!-- Checkpoint Saved Modal -->
   <dialog id="checkpoint-modal" class="modal">
-    <div class="modal-box m3-modal-box rounded-3xl max-w-lg p-6">
-      <div class="flex items-start gap-3.5">
-        <div class="w-11 h-11 rounded-2xl m3-success-container flex items-center justify-center shrink-0">
-          <span class="material-symbols-outlined icon-24">task_alt</span>
+    <div class="modal-box m3-modal-box ck-dialog max-w-md p-6 sm:p-7 text-center relative z-10">
+      <!-- Hero Trophy & Score -->
+      <div class="flex flex-col items-center">
+        <div class="ck-hero-badge m3-primary-container mb-3">
+          <span class="material-symbols-outlined filled">emoji_events</span>
         </div>
-        <div class="min-w-0 flex-1">
-          <span id="checkpoint-modal-badge" class="badge m3-tonal-badge text-xs font-semibold mb-1">Progress Saved</span>
-          <h3 id="checkpoint-modal-title" class="font-bold text-lg leading-snug">Module Complete — Save a Copy of Your Progress</h3>
-          <p id="checkpoint-modal-desc" class="text-sm m3-text-muted mt-1">
-            Your work is saved in this browser, but downloading a backup file lets you restore your progress if you switch computers or clear your browser data.
-          </p>
+
+        <span id="checkpoint-modal-badge" class="badge m3-tonal-badge font-mono font-bold text-xs px-3 py-2.5">
+          M1 Quiz Milestone
+        </span>
+
+        <div id="checkpoint-score-hero" class="mt-3 flex flex-col items-center justify-center gap-1">
+          <span id="checkpoint-score-value" class="text-5xl font-extrabold tracking-tight m3-text-primary font-mono leading-none">80%</span>
+          <span id="checkpoint-score-label" class="text-sm font-semibold m3-text-muted">Quiz Score</span>
+        </div>
+
+        <h3 id="checkpoint-modal-title" class="text-xl font-bold mt-2.5 leading-snug">
+          Module 1 Quiz Passed!
+        </h3>
+
+        <p id="checkpoint-modal-desc" class="text-xs sm:text-sm m3-text-muted mt-1.5 max-w-sm leading-relaxed">
+          Your progress is saved automatically in this browser.
+        </p>
+
+        <div id="checkpoint-progress-pill" class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full m3-surface-container border m3-border-subtle text-xs font-medium">
+          <span class="material-symbols-outlined icon-18 m3-text-primary">trending_up</span>
+          <span id="checkpoint-progress-text">2 of 13 Course Milestones Completed</span>
         </div>
       </div>
 
-      <div class="m3-surface-container rounded-2xl p-3.5 mt-4 border m3-border-subtle">
-        <div class="flex items-center justify-between text-xs font-semibold mb-1.5">
-          <span class="flex items-center gap-1.5">
-            <span class="material-symbols-outlined icon-18">key</span>
-            Backup Text
+      <!-- Collapsible Backup Accordion -->
+      <details id="checkpoint-backup-accordion" class="m3-accordion mt-5 rounded-2xl border m3-border-subtle m3-surface-container-low text-left">
+        <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
+          <span class="flex items-center gap-2 min-w-0">
+            <span class="material-symbols-outlined icon-18 m3-text-primary shrink-0">cloud_download</span>
+            <span>Save Backup File or Copy Code</span>
           </span>
-          <span id="checkpoint-filename-badge" class="font-mono opacity-75"></span>
-        </div>
-        <textarea id="checkpoint-token-preview" readonly rows="3" class="textarea textarea-bordered w-full font-mono text-[11px] leading-tight m3-surface-container-low"></textarea>
-      </div>
+          <span class="material-symbols-outlined icon-18 m3-accordion-chevron">expand_more</span>
+        </summary>
 
-      <div class="flex flex-wrap gap-2 mt-5 justify-end">
-        <button id="checkpoint-copy-token-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5">
-          <span class="material-symbols-outlined icon-18">content_copy</span>
-          Copy Backup Text
-        </button>
-        <button id="checkpoint-download-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5">
-          <span class="material-symbols-outlined icon-18">download</span>
-          <span>Download Progress File</span>
-          <span id="checkpoint-download-name" class="hidden"></span>
-        </button>
-        <form method="dialog">
-          <button id="checkpoint-continue-btn" class="btn btn-sm btn-primary rounded-full gap-1.5 px-5">
+        <div class="m3-accordion-body px-4 py-3.5 flex flex-col gap-2.5">
+          <div class="flex items-center justify-between gap-2 text-[11px] m3-text-muted">
+            <span class="shrink-0">Backup file:</span>
+            <span id="checkpoint-filename-badge" class="font-mono font-semibold truncate">Student_M1.json</span>
+          </div>
+
+          <textarea id="checkpoint-token-preview" readonly rows="3" class="textarea textarea-bordered w-full font-mono text-[11px] leading-snug rounded-xl m3-surface-container-lowest"></textarea>
+
+          <div class="grid grid-cols-2 gap-2 pt-0.5">
+            <button id="checkpoint-copy-token-btn" type="button" class="btn btn-sm btn-ghost border m3-border-subtle rounded-full flex-nowrap whitespace-nowrap gap-1.5">
+              <span class="material-symbols-outlined icon-18">content_copy</span>
+              <span>Copy Text</span>
+            </button>
+            <button id="checkpoint-download-btn" type="button" class="btn btn-sm m3-btn-tonal rounded-full flex-nowrap whitespace-nowrap gap-1.5">
+              <span class="material-symbols-outlined icon-18">download</span>
+              <span id="checkpoint-download-name">Download .json</span>
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <!-- Primary Progression CTA -->
+      <div class="mt-5 flex items-center justify-end">
+        <form method="dialog" class="w-full sm:w-auto">
+          <button id="checkpoint-continue-btn" class="btn btn-primary rounded-full w-full sm:w-auto px-7 gap-2 font-bold">
             <span>Continue</span>
             <span class="material-symbols-outlined icon-18">arrow_forward</span>
           </button>
         </form>
       </div>
     </div>
+
+    <!-- Festive Firework Layer (Sibling of .modal-box so nothing clips it) -->
+    <div id="checkpoint-burst-layer" class="ck-burst-layer" aria-hidden="true"></div>
+
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
 
@@ -340,11 +407,13 @@
 
       <!-- M3 Segmented Tab Bar -->
       <div class="bk-tabs" role="tablist" aria-label="Save or load progress">
-        <button type="button" id="bk-tab-load" class="bk-tab" role="tab" data-bk-tab="load" aria-controls="bk-panel-load" aria-selected="true">
+        <button type="button" id="bk-tab-load" class="bk-tab" role="tab" data-bk-tab="load"
+          aria-controls="bk-panel-load" aria-selected="true">
           <span class="material-symbols-outlined bk-tab-check icon-18">check</span>
           <span>Load Progress</span>
         </button>
-        <button type="button" id="bk-tab-save" class="bk-tab" role="tab" data-bk-tab="save" aria-controls="bk-panel-save" aria-selected="false" tabindex="-1">
+        <button type="button" id="bk-tab-save" class="bk-tab" role="tab" data-bk-tab="save"
+          aria-controls="bk-panel-save" aria-selected="false" tabindex="-1">
           <span class="material-symbols-outlined bk-tab-check icon-18">check</span>
           <span>Save Backup</span>
         </button>
@@ -353,9 +422,12 @@
       <!-- Tab 1: Load Progress -->
       <section id="bk-panel-load" class="bk-panel" role="tabpanel" aria-labelledby="bk-tab-load">
         <div class="bk-body">
-          <input id="modal-restore-file" type="file" accept=".json,application/json" class="hidden" tabindex="-1" aria-hidden="true">
+          <input id="modal-restore-file" type="file" accept=".json,application/json" class="hidden" tabindex="-1"
+            aria-hidden="true">
 
-          <div id="bk-dropzone" class="bk-dropzone" role="button" tabindex="0" aria-label="Upload a saved progress file. Drag and drop or press Enter to browse." aria-describedby="bk-meta-row">
+          <div id="bk-dropzone" class="bk-dropzone" role="button" tabindex="0"
+            aria-label="Upload a saved progress file. Drag and drop or press Enter to browse."
+            aria-describedby="bk-meta-row">
             <!-- Empty State -->
             <div class="bk-dz-empty">
               <span class="material-symbols-outlined bk-dz-icon">cloud_upload</span>
@@ -385,19 +457,23 @@
 
           <!-- Collapsible Backup Text Disclosure -->
           <div class="bk-accordion">
-            <button type="button" id="bk-paste-toggle" class="bk-accordion-toggle" aria-expanded="false" aria-controls="bk-paste-region">
+            <button type="button" id="bk-paste-toggle" class="bk-accordion-toggle" aria-expanded="false"
+              aria-controls="bk-paste-region">
               <span class="material-symbols-outlined icon-18 bk-chevron">chevron_right</span>
               <span>Or paste backup text</span>
             </button>
             <div id="bk-paste-region" class="bk-accordion-region" hidden>
-              <textarea id="modal-restore-token" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste your backup text here" class="textarea textarea-bordered w-full font-mono text-xs leading-snug rounded-xl"></textarea>
+              <textarea id="modal-restore-token" rows="3" spellcheck="false" autocomplete="off"
+                placeholder="Paste your backup text here"
+                class="textarea textarea-bordered w-full font-mono text-xs leading-snug rounded-xl"></textarea>
               <p id="bk-paste-status" class="bk-paste-status" aria-live="polite"></p>
             </div>
           </div>
         </div>
 
         <div class="bk-footer bk-footer-end">
-          <button id="modal-restore-btn" type="button" class="btn btn-primary rounded-full px-6 gap-1.5 bk-import-btn" disabled>
+          <button id="modal-restore-btn" type="button" class="btn btn-primary rounded-full px-6 gap-1.5 bk-import-btn"
+            disabled>
             <span class="material-symbols-outlined icon-18">upload</span>
             Import
           </button>
@@ -415,11 +491,13 @@
             <span class="material-symbols-outlined icon-20">download</span>
             Download Progress File (.json)
           </button>
-          <button id="modal-copy-token-btn" type="button" class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined">
+          <button id="modal-copy-token-btn" type="button"
+            class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined">
             <span class="material-symbols-outlined icon-20 bk-copy-icon">content_copy</span>
             <span class="bk-copy-label">Copy Backup Text</span>
           </button>
-          <p class="bk-hint">Your progress is saved automatically in this browser. Keep a backup to continue on another device.</p>
+          <p class="bk-hint">Your progress is saved automatically in this browser. Keep a backup to continue on another
+            device.</p>
         </div>
 
         <div class="bk-footer bk-footer-start">
@@ -459,23 +537,28 @@
           <div class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">Workspace &amp; IDE</div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Toggle sidebar</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">B</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd
+                class="m3-kbd">B</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Run code preview</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">R</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd
+                class="m3-kbd">R</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Run &amp; continue</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">Enter</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd
+                class="m3-kbd">Enter</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Reset starter code</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&#9003;</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd
+                class="m3-kbd">&#9003;</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Save progress</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">S</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd
+                class="m3-kbd">S</kbd></span>
           </div>
         </div>
 
@@ -484,15 +567,18 @@
           <div class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">Navigation</div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Previous step</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&larr;</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd
+                class="m3-kbd">&larr;</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Next step</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd class="m3-kbd">&rarr;</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-alt-key>Alt</kbd><kbd
+                class="m3-kbd">&rarr;</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Autocomplete</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd class="m3-kbd">Space</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd" data-mod-key>Ctrl</kbd><kbd
+                class="m3-kbd">Space</kbd></span>
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Expand Emmet</span>
@@ -500,7 +586,8 @@
           </div>
           <div class="flex items-center justify-between gap-3 text-sm py-1">
             <span>Shortcuts / Close</span>
-            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd">?</kbd><kbd class="m3-kbd">Esc</kbd></span>
+            <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd">?</kbd><kbd
+                class="m3-kbd">Esc</kbd></span>
           </div>
         </div>
       </div>
@@ -513,4 +600,5 @@
 
   <script type="module" src="./js/app.js"></script>
 </body>
+
 </html>
