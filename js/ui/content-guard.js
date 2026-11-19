@@ -5,11 +5,12 @@
  *   editable    inputs, textareas, code editors, backup / verification code boxes
  *               → always selectable and copyable.
  *   selectable  lessons and the home page ([data-selectable]) → normal select and copy.
- *   exam        quizzes ([data-protected-content])
+ *   exam        quizzes and graded labs ([data-protected-content])
  *               → desktop: selectable, but copying puts "Psych!" on the clipboard;
  *               → touch:   not selectable at all, so a long-press never opens the
  *                          browser's "Search with Google" sheet over a question.
- *   everything else (app chrome, labs, certificate) → not selectable or copyable.
+ *               (Code editors inside a lab stay editable and copyable.)
+ *   everything else (app chrome, certificate) → not selectable or copyable.
  *
  * Exam pages also get a best-effort screenshot decoy: a full-screen "Psych!" (see below).
  *
@@ -137,7 +138,14 @@ function initScreenshotDecoy() {
   }, { passive: true, capture: true });
 
   // Capture tools, other windows and the app switcher take the page out of focus / view.
-  window.addEventListener('blur', () => showDecoy());
+  // Clicking into a lab's live preview also blurs the window, but focus stays on the
+  // page (it moves to the <iframe>), so that case is skipped.
+  window.addEventListener('blur', () => {
+    setTimeout(() => {
+      if (document.activeElement?.tagName === 'IFRAME' && document.visibilityState === 'visible') return;
+      showDecoy();
+    }, 0);
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') showDecoy();
   });

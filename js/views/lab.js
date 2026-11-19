@@ -74,7 +74,7 @@ export async function renderLabView(labId, isBonus = false) {
   const modSymbol = MOD_KEY;
 
   view.innerHTML = `
-    <section class="ide-workspace-root ide-workspace-tabbed">
+    <section class="ide-workspace-root ide-workspace-tabbed" ${isBonus ? '' : 'data-protected-content'}>
       <!-- Compact IDE Action Bar -->
       <div class="ide-toolbar">
         <div class="w-full sm:w-auto sm:flex-1 flex items-center gap-2 min-w-0">
