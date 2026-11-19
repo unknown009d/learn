@@ -1300,6 +1300,102 @@ function renderHomeView() {
 // Single-Topic Full-Viewport Lesson Workspace (#/module/:id & #/module/:id/lesson/:n)
 // ============================================================================
 
+function openQuickCheckModal({ mod, sec, currentStep, totalLessons, isLastLesson, onAdvance }) {
+  const modal = document.getElementById('quick-check-modal');
+  const mc = sec.microCheck;
+  if (!modal || !mc || typeof modal.showModal !== 'function') {
+    onAdvance();
+    return;
+  }
+
+  const metaEl = document.getElementById('qc-lesson-meta');
+  const qEl = document.getElementById('qc-question');
+  const optsEl = document.getElementById('qc-options');
+  const fbEl = document.getElementById('qc-feedback');
+  const iconEl = document.getElementById('qc-hero-icon');
+  const hintEl = document.getElementById('qc-footer-hint');
+  const skipBtn = document.getElementById('qc-skip-btn');
+  const continueBtn = document.getElementById('qc-continue-btn');
+  const continueLbl = document.getElementById('qc-continue-label');
+
+  if (metaEl) metaEl.textContent = `Module ${mod.id} · Lesson ${currentStep} of ${totalLessons}`;
+  if (qEl) qEl.textContent = mc.question;
+  if (iconEl) {
+    iconEl.textContent = 'quiz';
+    iconEl.classList.remove('filled');
+  }
+  if (hintEl) hintEl.textContent = 'Optional self-check';
+  if (fbEl) {
+    fbEl.className = 'hidden rounded-2xl px-3.5 py-3 text-xs sm:text-[13px] mt-4 leading-relaxed flex items-start gap-2.5';
+    fbEl.innerHTML = '';
+  }
+  if (continueLbl) continueLbl.textContent = isLastLesson ? 'Take Quiz' : 'Continue';
+  skipBtn?.classList.remove('hidden');
+  continueBtn?.classList.add('hidden');
+
+  if (optsEl) {
+    optsEl.innerHTML = mc.options.map((opt, oIdx) => `
+      <button type="button" class="btn h-auto min-h-[46px] py-2.5 px-4 justify-start items-center flex-nowrap whitespace-normal text-left font-normal btn-ghost border m3-border-subtle rounded-2xl gap-3 text-xs sm:text-sm" data-qc-opt="${oIdx}">
+        <span class="w-6 h-6 rounded-full font-mono font-bold text-xs flex items-center justify-center shrink-0" style="background:color-mix(in srgb, currentColor 12%, transparent);">${['A', 'B', 'C'][oIdx]}</span>
+        <span class="min-w-0 break-words leading-snug">${escapeHtml(opt)}</span>
+      </button>
+    `).join('');
+
+    optsEl.querySelectorAll('[data-qc-opt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const picked = Number(btn.dataset.qcOpt);
+        const ok = picked === mc.correctIndex;
+
+        optsEl.querySelectorAll('[data-qc-opt]').forEach((b) => {
+          const idx = Number(b.dataset.qcOpt);
+          b.classList.remove('btn-primary', 'm3-btn-tonal', 'btn-ghost');
+          if (idx === picked) {
+            b.classList.add(ok ? 'btn-primary' : 'm3-btn-tonal');
+          } else {
+            b.classList.add('btn-ghost');
+          }
+        });
+
+        if (fbEl) {
+          fbEl.classList.remove('hidden', 'm3-primary-container', 'm3-error-container');
+          fbEl.classList.add(ok ? 'm3-primary-container' : 'm3-error-container');
+          fbEl.innerHTML = `
+            <span class="material-symbols-outlined text-base shrink-0 mt-0.5 filled" aria-hidden="true">${ok ? 'check_circle' : 'error'}</span>
+            <span><strong>${ok ? 'Correct!' : 'Not quite.'}</strong> ${escapeHtml(mc.explanation)}</span>
+          `;
+        }
+
+        if (iconEl) {
+          iconEl.textContent = ok ? 'check_circle' : 'quiz';
+          iconEl.classList.toggle('filled', ok);
+        }
+
+        if (ok) {
+          if (hintEl) hintEl.textContent = 'Ready for the next step';
+          skipBtn?.classList.add('hidden');
+          continueBtn?.classList.remove('hidden');
+          continueBtn?.focus();
+        } else {
+          if (hintEl) hintEl.textContent = 'Try another option or skip';
+        }
+      });
+    });
+  }
+
+  let advancing = false;
+  const finishAndAdvance = () => {
+    if (advancing) return;
+    advancing = true;
+    if (modal.open) modal.close();
+    onAdvance();
+  };
+
+  if (skipBtn) skipBtn.onclick = finishAndAdvance;
+  if (continueBtn) continueBtn.onclick = finishAndAdvance;
+
+  modal.showModal();
+}
+
 function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
   const isLastLesson = currentStep >= totalLessons;
   const checks = Array.isArray(sec.widget?.checks) ? sec.widget.checks : [];
@@ -1309,6 +1405,20 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
     <div id="pane-instructions" class="ide-pane">
       <div class="flex-1 overflow-y-auto p-5 sm:p-7 flex flex-col gap-6">
         <div>
+          <div class="flex items-center gap-1.5 mb-3 lg:hidden" role="progressbar" aria-label="Module ${mod.id} lesson progress" aria-valuenow="${currentStep}" aria-valuemin="1" aria-valuemax="${totalLessons}">
+            ${(mod.sections || []).map((s, idx) => {
+              const stepNum = idx + 1;
+              const done = isLessonCompleted(mod.id, s.id);
+              const isCurrent = stepNum === currentStep;
+              return `<a href="#/module/${mod.id}/lesson/${stepNum}" class="h-1.5 flex-1 rounded-full transition-opacity ${
+                isCurrent
+                  ? 'm3-dot-primary'
+                  : done || stepNum < currentStep
+                    ? 'm3-dot-primary opacity-45'
+                    : 'm3-surface-container-highest'
+              }" title="Lesson ${stepNum}: ${escapeHtml(s.title)}" aria-label="Lesson ${stepNum}: ${escapeHtml(s.title)}"></a>`;
+            }).join('')}
+          </div>
           <div id="lesson-step-label" class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">
             MODULE ${mod.id} &middot; LESSON ${currentStep} OF ${totalLessons}
           </div>
@@ -1337,7 +1447,7 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
             ${checks.length ? `
               <div class="flex flex-wrap gap-1.5 mt-3" data-me-checks>
                 ${checks.map((chk, idx) => `
-                  <span class="badge badge-sm rounded-full py-2 px-2.5 m3-surface-container border m3-border-subtle gap-1.5 font-medium text-xs" data-me-check="${idx}">
+                  <span class="badge badge-sm h-auto whitespace-normal text-left rounded-full py-1.5 px-2.5 m3-surface-container border m3-border-subtle gap-1.5 font-medium text-xs" data-me-check="${idx}">
                     <span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
                     <span>${escapeHtml(chk.label)}</span>
                   </span>
@@ -1359,30 +1469,6 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
             <div class="m3-accordion-body px-4 py-3.5 text-xs space-y-2 m3-text-muted">
               ${sec.analogy ? `<div><strong class="text-[var(--m3-text)]">${escapeHtml(sec.analogy.title)}:</strong> ${escapeHtml(sec.analogy.text)}</div>` : ''}
               ${sec.takeaway ? `<div><strong class="text-[var(--m3-text)]">Takeaway:</strong> ${escapeHtml(sec.takeaway.text)}</div>` : ''}
-            </div>
-          </details>
-        ` : ''}
-
-        ${sec.microCheck ? `
-          <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle" id="lesson-micro-check">
-            <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
-              <span class="flex items-center gap-2 min-w-0">
-                <span id="micro-check-icon" class="material-symbols-outlined icon-18 m3-text-primary shrink-0" aria-hidden="true">quiz</span>
-                <span>Quick Check (Optional)</span>
-              </span>
-              <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
-            </summary>
-            <div class="m3-accordion-body px-4 py-3.5">
-              <p class="text-xs sm:text-sm font-medium mb-3 mt-0">${escapeHtml(sec.microCheck.question)}</p>
-              <div class="flex flex-col gap-2">
-                ${sec.microCheck.options.map((opt, oIdx) => `
-                  <button type="button" class="btn btn-xs h-auto min-h-[34px] py-1.5 px-3.5 justify-start text-left font-normal btn-ghost border m3-border-subtle rounded-xl" data-mc-opt="${oIdx}">
-                    <span class="font-mono font-bold mr-2 opacity-75">${['A', 'B', 'C'][oIdx]}.</span>
-                    <span>${escapeHtml(opt)}</span>
-                  </button>
-                `).join('')}
-              </div>
-              <p id="micro-check-feedback" class="hidden text-xs mt-3 leading-relaxed m-0"></p>
             </div>
           </details>
         ` : ''}
@@ -1811,41 +1897,35 @@ function renderModuleView(moduleId, lessonStep = 1) {
     }
   } else {
     // Full-Viewport 2-Pane Simulator Workspace (M1L1-4, M4L1-4, M5L1-4)
+    // Desktop: side-by-side resizable split. Mobile (< 1024px): single vertical flow with inline simulator.
     view.innerHTML = `
-      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}">
-        <!-- Mobile 2-Tab Switcher (< 1024px) -->
-        <div class="p-2 border-b m3-border-subtle m3-surface-container-low lg:hidden">
-          <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container grid grid-cols-2" id="mobile-pane-tabs">
-            <button type="button" class="tab tab-sm rounded-full tab-active" data-pane="instructions">Lesson</button>
-            <button type="button" class="tab tab-sm rounded-full" data-pane="simulator">Interactive Lab</button>
-          </div>
-        </div>
-
+      <section class="ide-workspace-root ide-workspace-inline-mobile" data-micro-lesson="${escapeHtml(sec.id)}">
         <div id="ide-split-container" class="ide-split-container">
           ${renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons)}
 
           <div id="resizer-1" class="ide-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Lesson and Simulator"></div>
 
-          <div id="pane-simulator" class="ide-pane">
-            <div class="flex-1 overflow-y-auto p-5 sm:p-7 flex flex-col">
+          <div id="pane-simulator" class="ide-pane border-t m3-border-subtle lg:border-t-0">
+            <div class="flex-1 lg:overflow-y-auto p-5 sm:p-7 flex flex-col">
               <div class="w-full max-w-2xl mx-auto">
                 ${renderLessonWidgetHtml(sec.widget)}
               </div>
             </div>
-            <!-- Mobile Sticky Action Bar inside Interactive Lab Tab -->
-            <div class="lg:hidden m3-mobile-sticky-bar shrink-0">
-              <div class="m3-mobile-split-actions">
-                ${currentStep > 1 ? `
-                  <a href="#/module/${mod.id}/lesson/${currentStep - 1}" class="btn btn-circle m3-btn-tonal shrink-0" title="Previous" aria-label="Previous">
-                    <span class="material-symbols-outlined icon-18">arrow_back</span>
-                  </a>
-                ` : ''}
-                <button type="button" class="btn btn-primary gap-1.5 js-mobile-lesson-next">
-                  <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
-                  <span class="material-symbols-outlined icon-18">arrow_forward</span>
-                </button>
-              </div>
-            </div>
+          </div>
+        </div>
+
+        <!-- Single Mobile Sticky Action Bar (< 1024px) -->
+        <div class="lg:hidden m3-mobile-sticky-bar shrink-0">
+          <div class="m3-mobile-split-actions">
+            ${currentStep > 1 ? `
+              <a href="#/module/${mod.id}/lesson/${currentStep - 1}" class="btn btn-circle m3-btn-tonal shrink-0" title="Previous" aria-label="Previous">
+                <span class="material-symbols-outlined icon-18">arrow_back</span>
+              </a>
+            ` : ''}
+            <button type="button" class="btn btn-primary gap-1.5 js-mobile-lesson-next">
+              <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
+              <span class="material-symbols-outlined icon-18">arrow_forward</span>
+            </button>
           </div>
         </div>
       </section>
@@ -1866,62 +1946,10 @@ function renderModuleView(moduleId, lessonStep = 1) {
       null,
       null
     );
-
-    const mobileTabs = document.getElementById('mobile-pane-tabs');
-    if (mobileTabs) {
-      const panes = {
-        instructions: document.getElementById('pane-instructions'),
-        simulator: document.getElementById('pane-simulator')
-      };
-      const syncMobilePanes = (active) => {
-        if (window.innerWidth >= 1024) {
-          Object.values(panes).forEach((p) => p?.classList.remove('hidden'));
-          return;
-        }
-        Object.entries(panes).forEach(([k, p]) => p?.classList.toggle('hidden', k !== active));
-        mobileTabs.querySelectorAll('[data-pane]').forEach((b) => {
-          b.classList.toggle('tab-active', b.dataset.pane === active);
-        });
-      };
-      mobileTabs.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-pane]');
-        if (btn) syncMobilePanes(btn.dataset.pane);
-      });
-      syncMobilePanes('instructions');
-    }
-  }
-
-  // Hydrate Quick Check accordion in Pane 1
-  if (sec.microCheck) {
-    const mcRoot = document.getElementById('lesson-micro-check');
-    const fbEl = document.getElementById('micro-check-feedback');
-    mcRoot?.querySelectorAll('[data-mc-opt]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const picked = Number(btn.dataset.mcOpt);
-        const ok = picked === sec.microCheck.correctIndex;
-        mcRoot.querySelectorAll('[data-mc-opt]').forEach((b) => {
-          const idx = Number(b.dataset.mcOpt);
-          b.classList.remove('btn-primary', 'm3-btn-tonal', 'btn-ghost');
-          if (idx === picked) {
-            b.classList.add(ok ? 'btn-primary' : 'm3-btn-tonal');
-          } else {
-            b.classList.add('btn-ghost');
-          }
-        });
-        fbEl.classList.remove('hidden', 'm3-text-primary', 'text-error');
-        fbEl.classList.add(ok ? 'm3-text-primary' : 'text-error');
-        fbEl.textContent = `${ok ? 'Correct.' : 'Not quite.'} ${sec.microCheck.explanation}`;
-        const mcIcon = document.getElementById('micro-check-icon');
-        if (mcIcon) {
-          mcIcon.textContent = ok ? 'check_circle' : 'quiz';
-          mcIcon.classList.toggle('filled', ok);
-        }
-      });
-    });
   }
 
   // Save micro-lesson completion in IndexedDB and advance
-  document.getElementById('lesson-complete-next-btn')?.addEventListener('click', async () => {
+  const advanceToNextStep = async () => {
     await markLessonCompleted(mod.id, sec.id, currentStep);
     appState.lessons.add(`${mod.id}:${sec.id}`);
     renderSidebarAndProgress();
@@ -1930,6 +1958,14 @@ function renderModuleView(moduleId, lessonStep = 1) {
     } else {
       window.location.hash = `#/module/${mod.id}/lesson/${currentStep + 1}`;
     }
+  };
+
+  document.getElementById('lesson-complete-next-btn')?.addEventListener('click', () => {
+    if (sec.microCheck && !isLessonCompleted(mod.id, sec.id)) {
+      openQuickCheckModal({ mod, sec, currentStep, totalLessons, isLastLesson, onAdvance: advanceToNextStep });
+      return;
+    }
+    advanceToNextStep();
   });
 
   if (!isCodeWorkspace) {
@@ -3805,9 +3841,9 @@ async function renderVerifyView(queryParams = null) {
               <span class="material-symbols-outlined m3-text-primary">code</span>
               Submitted Lab Code
             </h3>
-            <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container overflow-x-auto" id="verify-lab-tabs">
+            <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container inline-flex flex-nowrap max-w-full overflow-x-auto no-scrollbar" id="verify-lab-tabs">
               ${LABS.map((l, idx) => `
-                <button type="button" class="tab tab-sm rounded-full ${idx === 0 ? 'tab-active font-bold' : ''}" data-inspect-lab="${l.id}">
+                <button type="button" class="tab tab-sm rounded-full shrink-0 ${idx === 0 ? 'tab-active font-bold' : ''}" data-inspect-lab="${l.id}">
                   ${l.code}
                 </button>
               `).join('')}
@@ -4290,6 +4326,22 @@ function initKeyboardShortcuts() {
       return;
     }
 
+    // Ctrl+Enter / Cmd+Enter inside Quick Check modal directly continues or skips
+    if (modKey && !e.altKey && key === 'Enter') {
+      const qcModal = document.getElementById('quick-check-modal');
+      if (qcModal?.open) {
+        e.preventDefault();
+        const continueBtn = document.getElementById('qc-continue-btn');
+        const skipBtn = document.getElementById('qc-skip-btn');
+        if (continueBtn && !continueBtn.classList.contains('hidden')) {
+          continueBtn.click();
+        } else {
+          skipBtn?.click();
+        }
+        return;
+      }
+    }
+
     // Do not run route/lesson shortcuts while a modal dialog is open
     const hasOpenModal = Boolean(document.querySelector('dialog[open]'));
     if (hasOpenModal) return;
@@ -4361,6 +4413,8 @@ function initKeyboardShortcuts() {
 }
 
 async function handleRoute() {
+  const qcModal = document.getElementById('quick-check-modal');
+  if (qcModal?.open) qcModal.close();
   appState.shortcutContext = null;
   if (appState.cleanupSplitResizers) {
     appState.cleanupSplitResizers();

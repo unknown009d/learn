@@ -90,17 +90,24 @@ export function runJsInSandbox(userCode) {
 // HTML Markup Builders
 // ============================================================================
 
+const PT_GEOM = {
+  mobile: { vb: '0 0 460 124', xs: [54, 171, 289, 406], cy: 50, r: 26, fo: 28, iconCls: 'icon-24', bx: 19, by: 31, br: 10, bty: 34.5, bfs: 10.5, ly: 95, lfs: 12, sy: 111, sfs: 10, n2: 'Backbone' },
+  desktop: { vb: '0 0 640 138', xs: [70, 236, 404, 570], cy: 54, r: 24, fo: 24, iconCls: 'icon-20', bx: 17, by: 36, br: 9, bty: 39.5, bfs: 9.5, ly: 98, lfs: 11.5, sy: 114, sfs: 9.5, n2: 'Internet Backbone' }
+};
+
 export function renderLessonWidgetHtml(widgetSpec) {
   if (!widgetSpec || !widgetSpec.type) return '';
   const type = widgetSpec.type;
 
   if (type === 'packet-toggle') {
+    const geom = (typeof window !== 'undefined' && window.innerWidth < 640) ? PT_GEOM.mobile : PT_GEOM.desktop;
     const nodes = [
-      { x: 70, icon: 'smartphone', label: 'Your Device', id: '0' },
-      { x: 236, icon: 'router', label: 'ISP / Router', id: '1' },
-      { x: 404, icon: 'public', label: 'Internet Backbone', id: '2' },
-      { x: 570, icon: 'forum', label: 'Chat Server', id: '3' }
+      { x: geom.xs[0], icon: 'smartphone', label: 'Your Device', id: '0' },
+      { x: geom.xs[1], icon: 'router', label: 'ISP / Router', id: '1' },
+      { x: geom.xs[2], icon: 'public', label: geom.n2, id: '2' },
+      { x: geom.xs[3], icon: 'forum', label: 'Chat Server', id: '3' }
     ];
+    const span = geom.xs[3] - geom.xs[0];
     return `
       <div class="flex flex-col gap-4 h-full" data-widget="packet-toggle">
         <!-- Widget Header -->
@@ -114,13 +121,13 @@ export function renderLessonWidgetHtml(widgetSpec) {
 
         <!-- Mode Switcher Tabs -->
         <div role="tablist" aria-label="Packet inspection mode" class="tabs tabs-boxed rounded-full p-1 m3-surface-container border m3-border-subtle grid grid-cols-2">
-          <button type="button" role="tab" aria-selected="true" class="tab tab-sm h-9 rounded-full gap-1.5 font-semibold tab-active" data-pt-mode="internet">
-            <span class="material-symbols-outlined icon-18">chat</span>
-            <span class="truncate">Internet Only (Chat)</span>
+          <button type="button" role="tab" aria-selected="true" class="tab rounded-full gap-1.5 text-xs sm:text-[13px] font-semibold tab-active" data-pt-mode="internet">
+            <span class="material-symbols-outlined icon-18 shrink-0">chat</span>
+            <span class="truncate">Internet<span class="hidden sm:inline"> Only</span> (Chat)</span>
           </button>
-          <button type="button" role="tab" aria-selected="false" class="tab tab-sm h-9 rounded-full gap-1.5 font-semibold" data-pt-mode="www">
-            <span class="material-symbols-outlined icon-18">language</span>
-            <span class="truncate">World Wide Web (HTTP)</span>
+          <button type="button" role="tab" aria-selected="false" class="tab rounded-full gap-1.5 text-xs sm:text-[13px] font-semibold" data-pt-mode="www">
+            <span class="material-symbols-outlined icon-18 shrink-0">language</span>
+            <span class="truncate"><span class="sm:hidden">Web</span><span class="hidden sm:inline">World Wide Web</span> (HTTP)</span>
           </button>
         </div>
 
@@ -137,7 +144,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
             </button>
           </div>
 
-          <svg viewBox="0 0 640 138" class="w-full h-auto block select-none" role="img" aria-label="Network Topology Diagram">
+          <svg viewBox="${geom.vb}" class="w-full h-auto block select-none" role="img" aria-label="Network Topology Diagram" data-pt-svg>
             <defs>
               <filter id="pt-glow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="3.5" result="blur" />
@@ -147,31 +154,31 @@ export function renderLessonWidgetHtml(widgetSpec) {
                 </feMerge>
               </filter>
               <clipPath id="pt-progress-clip">
-                <rect x="70" y="44" width="500" height="20" class="m3-packet-trail" style="transform-box:fill-box;transform-origin:left center;transform:scaleX(0);" data-pt-trail />
+                <rect x="${geom.xs[0]}" y="${geom.cy - 10}" width="${span}" height="20" class="m3-packet-trail" style="transform-box:fill-box;transform-origin:left center;transform:scaleX(0);" data-pt-trail />
               </clipPath>
             </defs>
 
             <!-- Base muted track + active green dashed flow clipped to packet progress -->
-            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-outline-variant)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6 6" />
-            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-primary)" stroke-width="2.5" stroke-linecap="round" class="m3-svg-flow" opacity="0.85" clip-path="url(#pt-progress-clip)" />
+            <line x1="${geom.xs[0]}" y1="${geom.cy}" x2="${geom.xs[3]}" y2="${geom.cy}" stroke="var(--m3-outline-variant)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6 6" data-pt-track />
+            <line x1="${geom.xs[0]}" y1="${geom.cy}" x2="${geom.xs[3]}" y2="${geom.cy}" stroke="var(--m3-primary)" stroke-width="2.5" stroke-linecap="round" class="m3-svg-flow" opacity="0.85" clip-path="url(#pt-progress-clip)" data-pt-track />
 
             <!-- Travelling Glowing Packet Dot (rendered behind nodes so icons stay unobstructed) -->
-            <circle cx="70" cy="54" r="10" fill="var(--m3-primary)" opacity="0.28" class="m3-packet-dot" data-pt-packet-glow />
-            <circle cx="70" cy="54" r="5.5" fill="var(--m3-primary)" stroke="var(--m3-surface-container-lowest)" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
+            <circle cx="${geom.xs[0]}" cy="${geom.cy}" r="10" fill="var(--m3-primary)" opacity="0.28" class="m3-packet-dot" data-pt-packet-glow />
+            <circle cx="${geom.xs[0]}" cy="${geom.cy}" r="5.5" fill="var(--m3-primary)" stroke="var(--m3-surface-container-lowest)" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
 
             <!-- Nodes -->
             ${nodes.map((n, idx) => `
               <g data-pt-node="${idx}" class="m3-pt-node cursor-pointer">
-                <circle cx="${n.x}" cy="54" r="24" fill="var(--m3-surface-container-lowest)" stroke="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-outline-variant)'}" stroke-width="2.5" data-pt-ring="${idx}" />
-                <foreignObject x="${n.x - 12}" y="42" width="24" height="24">
-                  <div xmlns="http://www.w3.org/1999/xhtml" class="w-6 h-6 flex items-center justify-center" style="color:var(--m3-text);">
-                    <span class="material-symbols-outlined icon-20" ${idx === 3 ? 'data-pt-dest-icon' : ''}>${n.icon}</span>
+                <circle cx="${n.x}" cy="${geom.cy}" r="${geom.r}" fill="var(--m3-surface-container-lowest)" stroke="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-outline-variant)'}" stroke-width="2.5" data-pt-ring="${idx}" />
+                <foreignObject x="${n.x - geom.fo / 2}" y="${geom.cy - geom.fo / 2}" width="${geom.fo}" height="${geom.fo}" data-pt-fo="${idx}">
+                  <div xmlns="http://www.w3.org/1999/xhtml" class="w-full h-full flex items-center justify-center" style="color:var(--m3-text);">
+                    <span class="material-symbols-outlined ${geom.iconCls}" data-pt-icon="${idx}" ${idx === 3 ? 'data-pt-dest-icon' : ''}>${n.icon}</span>
                   </div>
                 </foreignObject>
-                <circle cx="${n.x + 17}" cy="36" r="9" fill="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)'}" data-pt-badge-bg="${idx}" />
-                <text x="${n.x + 17}" y="39.5" text-anchor="middle" font-size="9.5" font-weight="700" font-family="'JetBrains Mono', monospace" fill="${idx === 0 ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)'}" data-pt-badge-txt="${idx}">${idx + 1}</text>
-                <text x="${n.x}" y="98" text-anchor="middle" font-size="11.5" font-weight="700" font-family="'Google Sans', 'Plus Jakarta Sans', sans-serif" fill="var(--m3-text)" ${idx === 3 ? 'data-pt-dest-label' : ''}>${n.label}</text>
-                <text x="${n.x}" y="114" text-anchor="middle" font-size="9.5" font-family="'JetBrains Mono', monospace" fill="var(--m3-text-muted)" data-pt-sub="${idx}">${idx === 2 ? 'Fibre / TCP/IP' : idx === 3 ? 'Chat Relay' : ''}</text>
+                <circle cx="${n.x + geom.bx}" cy="${geom.by}" r="${geom.br}" fill="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)'}" data-pt-badge-bg="${idx}" />
+                <text x="${n.x + geom.bx}" y="${geom.bty}" text-anchor="middle" font-size="${geom.bfs}" font-weight="700" font-family="'JetBrains Mono', monospace" fill="${idx === 0 ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)'}" data-pt-badge-txt="${idx}">${idx + 1}</text>
+                <text x="${n.x}" y="${geom.ly}" text-anchor="middle" font-size="${geom.lfs}" font-weight="700" font-family="'Google Sans', 'Plus Jakarta Sans', sans-serif" fill="var(--m3-text)" data-pt-label="${idx}" ${idx === 3 ? 'data-pt-dest-label' : ''}>${n.label}</text>
+                <text x="${n.x}" y="${geom.sy}" text-anchor="middle" font-size="${geom.sfs}" font-family="'JetBrains Mono', monospace" fill="var(--m3-text-muted)" data-pt-sub="${idx}">${idx === 2 ? 'Fibre / TCP/IP' : idx === 3 ? 'Chat Relay' : ''}</text>
               </g>
             `).join('')}
           </svg>
@@ -190,21 +197,21 @@ export function renderLessonWidgetHtml(widgetSpec) {
             <span>Live Packet Header</span>
           </div>
           <div class="grid grid-cols-2 gap-3 text-xs">
-            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle min-w-0">
               <div class="text-[10px] uppercase font-bold m3-text-muted">Protocol</div>
-              <div class="font-mono font-bold m3-text-primary mt-1" data-pt-h-proto>TCP/IP (XMPP)</div>
+              <div class="font-mono font-bold m3-text-primary mt-1 break-words" data-pt-h-proto>TCP/IP (XMPP)</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle min-w-0">
               <div class="text-[10px] uppercase font-bold m3-text-muted">Port</div>
-              <div class="font-mono font-bold mt-1" data-pt-h-port>5222</div>
+              <div class="font-mono font-bold mt-1 break-words" data-pt-h-port>5222</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle min-w-0">
               <div class="text-[10px] uppercase font-bold m3-text-muted">Payload Type</div>
-              <div class="font-mono font-semibold mt-1" data-pt-h-payload>Raw Binary / JSON</div>
+              <div class="font-mono font-semibold mt-1 break-words" data-pt-h-payload>Raw Binary / JSON</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle min-w-0">
               <div class="text-[10px] uppercase font-bold m3-text-muted">Browser Rendering</div>
-              <div class="font-mono font-semibold mt-1" data-pt-h-render>Not Needed</div>
+              <div class="font-mono font-semibold mt-1 break-words" data-pt-h-render>Not Needed</div>
             </div>
           </div>
         </div>
@@ -235,8 +242,8 @@ export function renderLessonWidgetHtml(widgetSpec) {
         <div class="m3-surface-container-low rounded-2xl p-3.5 border m3-border-subtle flex flex-col gap-2.5">
           <div class="text-[11px] font-semibold m3-text-muted">2. Simulated DNS Resolver (Domain &rarr; IP Address):</div>
           <div class="flex gap-2">
-            <input type="text" class="input input-sm input-bordered font-mono text-xs flex-1 rounded-full" value="druba.in" placeholder="Enter domain e.g. google.com" data-dns-input>
-            <button type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-1" data-dns-btn>
+            <input type="text" class="input input-sm input-bordered font-mono text-xs flex-1 min-w-0 rounded-full" value="druba.in" placeholder="Enter domain e.g. google.com" data-dns-input>
+            <button type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-1 shrink-0" data-dns-btn>
               <span class="material-symbols-outlined icon-18">search</span>
               <span>Resolve</span>
             </button>
@@ -246,7 +253,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
               <button type="button" class="btn btn-xs btn-ghost border m3-border-subtle rounded-full font-mono" data-dns-chip="${d}">${d}</button>
             `).join('')}
           </div>
-          <div class="m3-code-block p-3 font-mono text-xs leading-relaxed" data-dns-out></div>
+          <div class="m3-code-block p-3 font-mono text-xs leading-relaxed overflow-x-auto break-words" data-dns-out></div>
         </div>
       </div>
     `;
@@ -273,14 +280,14 @@ export function renderLessonWidgetHtml(widgetSpec) {
           <button type="button" class="btn btn-xs m3-btn-tonal rounded-full font-mono" data-http-path="/login">/login (Auth)</button>
         </div>
 
-        <div class="m3-code-block p-3 font-mono text-[11px] leading-relaxed" data-http-raw></div>
+        <div class="m3-code-block p-3 font-mono text-[11px] leading-relaxed overflow-x-auto" data-http-raw></div>
 
         <div class="m3-surface-container-low rounded-2xl p-3 border m3-border-subtle">
           <div class="text-[11px] font-bold uppercase tracking-wider m3-text-muted mb-1.5 flex items-center gap-1">
             <span class="material-symbols-outlined icon-18">preview</span>
             <span>Browser Parsed Output</span>
           </div>
-          <div class="p-3 rounded-xl bg-white text-[#171d19] border border-slate-200 text-xs" data-http-render></div>
+          <div class="p-3 rounded-xl bg-white text-[#171d19] border border-slate-200 text-xs break-words" data-http-render></div>
         </div>
       </div>
     `;
@@ -294,7 +301,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
             <span class="material-symbols-outlined icon-18">devices</span>
             <span>Responsive &amp; Stack Simulator</span>
           </div>
-          <div class="flex gap-1">
+          <div class="flex flex-wrap gap-1">
             <button type="button" class="btn btn-xs btn-primary rounded-full" data-vp="mobile">Mobile 375px</button>
             <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-vp="tablet">Tablet 768px</button>
             <button type="button" class="btn btn-xs m3-btn-tonal rounded-full" data-vp="desktop">Desktop 1200px</button>
@@ -315,7 +322,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <div class="p-3 rounded-2xl m3-primary-container">
             <div class="font-bold flex items-center gap-1"><span class="material-symbols-outlined icon-18">laptop_mac</span> Front End (Browser)</div>
             <div class="opacity-90 mt-1">HTML + CSS + JavaScript run directly on the user’s screen.</div>
@@ -455,7 +462,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
           </label>
         </div>
 
-        <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
           <label class="flex flex-col gap-1">
             <span>Width: <strong class="font-mono" data-bm-val="w">180px</strong></span>
             <input type="range" min="120" max="260" value="180" class="range range-xs range-primary" data-bm-slider="w">
@@ -474,7 +481,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
           </label>
         </div>
 
-        <div class="flex items-center gap-1.5 text-xs">
+        <div class="flex flex-wrap items-center gap-1.5 text-xs">
           <span class="m3-text-muted font-semibold">Element Display:</span>
           <button type="button" class="btn btn-xs btn-primary rounded-full font-mono" data-bm-disp="block">&lt;div&gt; block</button>
           <button type="button" class="btn btn-xs m3-btn-tonal rounded-full font-mono" data-bm-disp="inline">&lt;span&gt; inline</button>
@@ -575,7 +582,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
             </ul>
           </div>
 
-          <div class="m3-code-block p-3 font-mono text-[11px] flex flex-col gap-1.5" data-dom-tree></div>
+          <div class="m3-code-block p-3 font-mono text-[11px] flex flex-col gap-1.5 overflow-x-auto" data-dom-tree></div>
         </div>
       </div>
     `;
@@ -624,22 +631,22 @@ export function renderLessonWidgetHtml(widgetSpec) {
           <span class="badge m3-tonal-badge font-mono text-xs" data-fw-score>Rule Audit: 2/4 Safe</span>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <label class="flex items-center justify-between p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
-            <span class="font-mono">Port 443 (HTTPS)</span>
-            <input type="checkbox" checked class="toggle toggle-xs toggle-primary" data-fw-port="443">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
+            <span class="font-mono min-w-0 truncate">Port 443 (HTTPS)</span>
+            <input type="checkbox" checked class="toggle toggle-xs toggle-primary shrink-0" data-fw-port="443">
           </label>
-          <label class="flex items-center justify-between p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
-            <span class="font-mono">Port 80 (Plain HTTP)</span>
-            <input type="checkbox" class="toggle toggle-xs toggle-primary" data-fw-port="80">
+          <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
+            <span class="font-mono min-w-0 truncate">Port 80 (Plain HTTP)</span>
+            <input type="checkbox" class="toggle toggle-xs toggle-primary shrink-0" data-fw-port="80">
           </label>
-          <label class="flex items-center justify-between p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
-            <span class="font-mono">Port 22 (Open SSH)</span>
-            <input type="checkbox" checked class="toggle toggle-xs toggle-primary" data-fw-port="22">
+          <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
+            <span class="font-mono min-w-0 truncate">Port 22 (Open SSH)</span>
+            <input type="checkbox" checked class="toggle toggle-xs toggle-primary shrink-0" data-fw-port="22">
           </label>
-          <label class="flex items-center justify-between p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
-            <span class="font-mono">Port 4444 (Malware)</span>
-            <input type="checkbox" checked class="toggle toggle-xs toggle-primary" data-fw-port="4444">
+          <label class="flex items-center justify-between gap-2 p-2.5 rounded-xl m3-surface-container-low border m3-border-subtle cursor-pointer">
+            <span class="font-mono min-w-0 truncate">Port 4444 (Malware)</span>
+            <input type="checkbox" checked class="toggle toggle-xs toggle-primary shrink-0" data-fw-port="4444">
           </label>
         </div>
 
@@ -648,7 +655,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
           <span>Send Test Traffic Wave</span>
         </button>
 
-        <div class="m3-code-block p-3 font-mono text-[11px] space-y-1" data-fw-log>
+        <div class="m3-code-block p-3 font-mono text-[11px] space-y-1 overflow-x-auto break-words" data-fw-log>
           Toggle port rules above (block risky ports 22 &amp; 4444, keep 443 open) and test incoming traffic!
         </div>
       </div>
@@ -690,8 +697,11 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
   const pt = rootEl.querySelector('[data-widget="packet-toggle"]');
   if (pt) {
     let mode = 'internet';
+    let currentHop = 0;
     let stepTimer = null;
-    const nodeXs = [70, 236, 404, 570];
+    const svgEl = pt.querySelector('[data-pt-svg]');
+    const mobileMq = window.matchMedia ? window.matchMedia('(max-width: 639px)') : null;
+    let nodeXs = (mobileMq?.matches ? PT_GEOM.mobile.xs : PT_GEOM.desktop.xs).slice();
     const protoEl = pt.querySelector('[data-pt-proto]');
     const destIcon = pt.querySelector('[data-pt-dest-icon]');
     const destLabel = pt.querySelector('[data-pt-dest-label]');
@@ -723,8 +733,10 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
     };
 
     const highlightNode = (activeIdx, { instant = false } = {}) => {
+      const clampedIdx = Math.min(3, Math.max(0, activeIdx));
+      currentHop = clampedIdx;
       nodeXs.forEach((_, idx) => {
-        const lit = idx <= activeIdx;
+        const lit = idx <= clampedIdx;
         const ring = pt.querySelector(`[data-pt-ring="${idx}"]`);
         const badgeBg = pt.querySelector(`[data-pt-badge-bg="${idx}"]`);
         const badgeTxt = pt.querySelector(`[data-pt-badge-txt="${idx}"]`);
@@ -732,7 +744,6 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
         if (badgeBg) badgeBg.setAttribute('fill', lit ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)');
         if (badgeTxt) badgeTxt.setAttribute('fill', lit ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)');
       });
-      const clampedIdx = Math.min(3, Math.max(0, activeIdx));
       const x = nodeXs[clampedIdx];
       const offset = x - nodeXs[0];
       const ratio = offset / (nodeXs[3] - nodeXs[0]);
@@ -754,6 +765,57 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
         status.textContent = hopDescriptions[mode]?.[clampedIdx] || '';
       }
     };
+
+    const applyTopologyLayout = (isMobile) => {
+      const g = isMobile ? PT_GEOM.mobile : PT_GEOM.desktop;
+      nodeXs = g.xs.slice();
+      const span = g.xs[3] - g.xs[0];
+      if (svgEl) svgEl.setAttribute('viewBox', g.vb);
+      if (packetTrail) {
+        packetTrail.setAttribute('x', String(g.xs[0]));
+        packetTrail.setAttribute('y', String(g.cy - 10));
+        packetTrail.setAttribute('width', String(span));
+      }
+      pt.querySelectorAll('[data-pt-track]').forEach((ln) => {
+        ln.setAttribute('x1', String(g.xs[0]));
+        ln.setAttribute('y1', String(g.cy));
+        ln.setAttribute('x2', String(g.xs[3]));
+        ln.setAttribute('y2', String(g.cy));
+      });
+      [packet, packetGlow].forEach((dot) => {
+        if (!dot) return;
+        dot.setAttribute('cx', String(g.xs[0]));
+        dot.setAttribute('cy', String(g.cy));
+      });
+      g.xs.forEach((x, idx) => {
+        const ring = pt.querySelector(`[data-pt-ring="${idx}"]`);
+        const fo = pt.querySelector(`[data-pt-fo="${idx}"]`);
+        const ico = pt.querySelector(`[data-pt-icon="${idx}"]`);
+        const bg = pt.querySelector(`[data-pt-badge-bg="${idx}"]`);
+        const bt = pt.querySelector(`[data-pt-badge-txt="${idx}"]`);
+        const lbl = pt.querySelector(`[data-pt-label="${idx}"]`);
+        const sub = pt.querySelector(`[data-pt-sub="${idx}"]`);
+        if (ring) { ring.setAttribute('cx', String(x)); ring.setAttribute('cy', String(g.cy)); ring.setAttribute('r', String(g.r)); }
+        if (fo) { fo.setAttribute('x', String(x - g.fo / 2)); fo.setAttribute('y', String(g.cy - g.fo / 2)); fo.setAttribute('width', String(g.fo)); fo.setAttribute('height', String(g.fo)); }
+        if (ico) { ico.classList.remove('icon-20', 'icon-24'); ico.classList.add(g.iconCls); }
+        if (bg) { bg.setAttribute('cx', String(x + g.bx)); bg.setAttribute('cy', String(g.by)); bg.setAttribute('r', String(g.br)); }
+        if (bt) { bt.setAttribute('x', String(x + g.bx)); bt.setAttribute('y', String(g.bty)); bt.setAttribute('font-size', String(g.bfs)); }
+        if (lbl) { lbl.setAttribute('x', String(x)); lbl.setAttribute('y', String(g.ly)); lbl.setAttribute('font-size', String(g.lfs)); if (idx === 2) lbl.textContent = g.n2; }
+        if (sub) { sub.setAttribute('x', String(x)); sub.setAttribute('y', String(g.sy)); sub.setAttribute('font-size', String(g.sfs)); }
+      });
+      highlightNode(currentHop, { instant: true });
+    };
+
+    if (mobileMq && typeof mobileMq.addEventListener === 'function') {
+      const onMqChange = (e) => {
+        if (!document.body.contains(pt)) {
+          mobileMq.removeEventListener('change', onMqChange);
+          return;
+        }
+        applyTopologyLayout(e.matches);
+      };
+      mobileMq.addEventListener('change', onMqChange);
+    }
 
     const animatePacket = () => {
       clearInterval(stepTimer);

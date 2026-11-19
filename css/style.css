@@ -343,6 +343,7 @@ code, pre, .font-mono {
 .m3-surface-container-low, .m3-card-low { background-color: var(--m3-surface-container-low); }
 .m3-surface-container, .m3-card { background-color: var(--m3-surface-container); }
 .m3-surface-container-high { background-color: var(--m3-surface-container-high); }
+.m3-surface-container-highest { background-color: var(--m3-surface-container-highest); }
 
 /* ==========================================================================
    100% Opaque Elevated Surfaces (Modals, Toasts, Dropdowns & Form Controls)
@@ -362,6 +363,14 @@ code, pre, .font-mono {
   .modal-box.m3-modal-box {
     width: calc(100vw - 24px);
     max-width: 480px;
+  }
+  #quick-check-modal .modal-box.m3-modal-box {
+    width: 100%;
+    max-width: 100%;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: 0 !important;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
   }
 }
 
@@ -458,12 +467,27 @@ dialog.modal::backdrop,
 
 .tabs-boxed {
   background-color: var(--m3-surface-container) !important;
+  max-width: 100%;
 }
 
 .tabs-boxed .tab {
+  flex-wrap: nowrap;
+  min-width: 0;
+  height: auto;
+  min-height: 2.25rem;
+  padding-inline: 0.65rem;
+  padding-block: 0.35rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
   color: var(--m3-text-muted);
   background-color: transparent;
   transition: background-color 150ms ease, color 150ms ease, filter 150ms ease;
+}
+
+.tabs-boxed .tab.tab-xs {
+  min-height: 1.75rem;
+  padding-block: 0.2rem;
 }
 
 .tabs-boxed .tab:hover:not(.tab-active),
@@ -892,6 +916,12 @@ dialog.modal::backdrop,
     flex: 1;
     display: flex;
     flex-direction: column;
+  }
+  .ide-workspace-inline-mobile .ide-pane {
+    flex: 0 0 auto;
+  }
+  .ide-workspace-inline-mobile #pane-instructions > footer {
+    display: none;
   }
   #mobile-pane-tabs .tab {
     min-height: 44px;

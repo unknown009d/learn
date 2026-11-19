@@ -362,7 +362,7 @@
 
           <textarea id="checkpoint-token-preview" readonly rows="3" class="textarea textarea-bordered w-full font-mono text-[11px] leading-snug rounded-xl m3-surface-container-lowest"></textarea>
 
-          <div class="grid grid-cols-2 gap-2 pt-0.5">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
             <button id="checkpoint-copy-token-btn" type="button" class="btn btn-sm btn-ghost border m3-border-subtle rounded-full flex-nowrap whitespace-nowrap gap-1.5">
               <span class="material-symbols-outlined icon-18">content_copy</span>
               <span>Copy Text</span>
@@ -589,6 +589,50 @@
             <span class="flex items-center gap-1 shrink-0"><kbd class="m3-kbd">?</kbd><kbd
                 class="m3-kbd">Esc</kbd></span>
           </div>
+        </div>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Lesson Quick Check Modal (Bottom Sheet on Mobile, Centered Card on Desktop) -->
+  <dialog id="quick-check-modal" class="modal modal-bottom sm:modal-middle" aria-labelledby="qc-modal-title">
+    <div class="modal-box m3-modal-box rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg p-5 sm:p-6">
+      <div class="w-10 h-1 rounded-full m3-surface-container-highest mx-auto mb-4 sm:hidden" aria-hidden="true"></div>
+
+      <div class="flex items-center justify-between gap-3 pb-3.5 border-b m3-border-subtle">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div id="qc-hero-icon-wrap" class="w-9 h-9 rounded-2xl m3-primary-container flex items-center justify-center shrink-0">
+            <span id="qc-hero-icon" class="material-symbols-outlined icon-20">quiz</span>
+          </div>
+          <div class="min-w-0">
+            <h3 id="qc-modal-title" class="font-bold text-base leading-tight">Quick Check</h3>
+            <p id="qc-lesson-meta" class="text-[11px] m3-text-muted mt-0.5 truncate">Module 1 &middot; Lesson 1 of 5</p>
+          </div>
+        </div>
+        <form method="dialog">
+          <button class="btn btn-sm btn-ghost btn-circle" aria-label="Back to lesson" title="Back to lesson">
+            <span class="material-symbols-outlined icon-20">close</span>
+          </button>
+        </form>
+      </div>
+
+      <div class="mt-4">
+        <p id="qc-question" class="text-sm sm:text-[15px] font-semibold leading-snug m-0"></p>
+        <div id="qc-options" class="flex flex-col gap-2.5 mt-4"></div>
+        <div id="qc-feedback" class="hidden rounded-2xl px-3.5 py-3 text-xs sm:text-[13px] mt-4 leading-relaxed flex items-start gap-2.5" role="status" aria-live="polite"></div>
+      </div>
+
+      <div class="mt-5 pt-3.5 border-t m3-border-subtle flex items-center justify-between gap-3">
+        <span id="qc-footer-hint" class="text-xs m3-text-muted">Optional self-check</span>
+        <div class="flex items-center gap-2 ml-auto">
+          <button id="qc-skip-btn" type="button" class="btn btn-sm btn-ghost rounded-full px-4 m3-text-muted">
+            Skip
+          </button>
+          <button id="qc-continue-btn" type="button" class="hidden btn btn-sm btn-primary rounded-full px-5 gap-1.5 font-semibold">
+            <span id="qc-continue-label">Continue</span>
+            <span class="material-symbols-outlined icon-18">arrow_forward</span>
+          </button>
         </div>
       </div>
     </div>
