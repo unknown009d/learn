@@ -39,7 +39,7 @@ tools/                 asset pipeline (vendor sync, Tailwind build, lesson audio
 
 Gating is derived from the data: add a module or lab to `course-data.js` / `labs-data.js` and the unlock rules, progress counts and messages follow. A lab's `id` is its permanent storage key; `code` ("Lab 4") is only its display label.
 
-## The DevTools trail and the Order of the Third Eye
+## The DevTools trail and DevSec
 
 Everything here is client-side, so a determined learner can always bend it — and that's the point. Instead of pretending otherwise, the app keeps an honest **DevTools trail** of how it was inspected:
 
@@ -53,9 +53,9 @@ Everything here is client-side, so a determined learner can always bend it — a
 | Edited saved progress | IndexedDB no longer matches the seal the app writes after every save |
 | Hand-crafted a backup | `.vwfd` with a valid signature but a missing / wrong integrity seal |
 
-The trail travels with backups and rides along (unsigned) with certificates — after `~` in the verification code and as `&t=` in the QR link. If it contains hands-on tricks, the verify page shows the parody **Mastery** badge of the *Order of the Third Eye*. The badge reads DEV (*deva*, a god), so the order is themed on Hindu mythology: its motto is *असतो मा सद्गमय* (Asato mā sad gamaya, "lead me from the unreal to the real", from the rendered page to the real source), and ranks go Shishya (disciple) → Rishi (seer) → Deva (god) by how many different tricks were used, and the badge appears on the certificate too. The badge artwork is `assets/badge.svg`; replace that file to change it everywhere. It is drawn in `#6E6D7A`, which the app swaps for the theme accent on the verify page (the certificate keeps the grey); keep that colour in a replacement if you want the recolouring. Just opening DevTools shows up on the trail but doesn't earn the badge.
+The trail travels with backups and rides along (unsigned) with certificates — after `~` in the verification code and as `&t=` in the QR link. If it contains hands-on tricks, the verify page shows "Impeccable" with the parody DEV badge of **DevSec**, a pun on DedSec, the hacker collective from the Watch Dogs games (*Dev* as in developer). Its motto is "Read the source. Bend the system.", and ranks go Script Kiddie → Hacktivist → Root by how many different tricks were used. The badge also crowns the certificate, and opening DevTools greets the learner with a DevSec transmission in the console. The badge artwork is `assets/badge.svg`; replace that file to change it everywhere. It is drawn in `#6E6D7A`, which the app swaps for the theme accent on the verify page (the certificate keeps the grey); keep that colour in a replacement if you want the recolouring. Just opening DevTools shows up on the trail but doesn't earn the badge.
 
-Course text is also protected: it can't be selected, copied or right-clicked, and touch screens can't pinch-zoom (`js/ui/content-guard.js`). Editors and the backup / verification code boxes stay usable.
+Text handling (`js/ui/content-guard.js`): lessons and the home page select and copy normally. Exams are selectable on desktop, but copying a question puts **"Psych!"** on the clipboard; on touch devices exams can't be selected at all, so a long-press never opens a search sheet over a question. Editors and the backup / verification code boxes always work, the rest of the app chrome can't be copied, and touch screens can't pinch-zoom. On exam pages a screenshot attempt is met with a full-screen "Psych!" on a best-effort basis. It goes up as soon as Win/⌘ + Shift are held (before Win+Shift+S or ⌘⇧3/4/5 can capture), on a three-finger touch (the usual phone screenshot swipe), and whenever the page loses focus or is hidden. Print Screen also overwrites the clipboard, and printing an exam prints only "Psych!". Power + volume screenshots on phones give the page no signal, so those can't be caught.
 
 ## Rebuilding assets
 

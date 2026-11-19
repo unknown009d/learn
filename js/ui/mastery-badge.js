@@ -1,5 +1,5 @@
 /**
- * The mastery badge for the "Order of the Third Eye". The artwork lives in assets/badge.svg
+ * The DEV mastery badge for DevSec (see ORDER in trail-format.js). The artwork lives in assets/badge.svg
  * (drawn in grey, #6E6D7A). It is inlined rather than used as an <img>, with that grey swapped
  * for currentColor, so the surrounding CSS sets its colour: the artwork's own grey on the
  * certificate, the theme accent on the verify page. Inline SVG also survives print and the
@@ -48,5 +48,5 @@ export function masteryBadgeHtml(markup, rank, { size = 96, className = '' } = {
   return markup.replace(
     /<svg\b[^>]*?\swidth="[^"]*"\s+height="[^"]*"/,
     `<svg width="${size}" height="${size}" class="mastery-badge ${className}" role="img" aria-label="${label}"`
-  ).replace(/(<svg\b[^>]*>)/, `$1<title>${rank.fullTitle} · ${ORDER.mottoScript} (${ORDER.motto}: ${ORDER.mottoMeaning})</title>`);
+  ).replace(/(<svg\b[^>]*>)/, `$1<title>${rank.fullTitle} · ${ORDER.motto} ${ORDER.signoff}</title>`);
 }

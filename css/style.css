@@ -2294,6 +2294,11 @@ html.is-mod-key-held .m3-kbd-on-primary {
   transition: background-color 150ms ease, border-color 150ms ease;
 }
 
+/* Once playback starts, the player bar replaces this pill (needs to beat display above). */
+.m3-audio-gist-trigger.hidden {
+  display: none;
+}
+
 .m3-audio-gist-trigger:hover {
   background-color: var(--m3-primary-container);
   color: var(--m3-on-primary-container);
@@ -2507,15 +2512,69 @@ select,
   -webkit-touch-callout: default;
 }
 
+/* Lessons and the home page: normal text selection and copy. */
+[data-selectable] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Icon fonts are ligature text ("check_circle"); keep them out of copied selections. */
+[data-selectable] .material-symbols-outlined,
+.is-desktop-pointer [data-protected-content] .material-symbols-outlined {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Exams on desktop: selectable, but copying yields "Psych!" (content-guard.js).
+   On touch devices they stay unselectable, so no long-press search sheet. */
+.is-desktop-pointer [data-protected-content] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Screenshot decoy on exam pages (content-guard.js): the base background with a giant "Psych!". */
+.psych-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--m3-surface, #f6faf6);
+  color: var(--m3-text, #171d19);
+  font: 800 clamp(72px, 18vw, 240px) / 1 'Google Sans', system-ui, sans-serif;
+  letter-spacing: -0.04em;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 @media print {
   [data-protected-content],
-  #quick-check-modal {
+  #quick-check-modal,
+  .psych-overlay {
     display: none !important;
+  }
+
+  /* Printing an exam prints only the decoy. */
+  body:has([data-protected-content]) > * {
+    display: none !important;
+  }
+
+  body:has([data-protected-content])::before {
+    content: 'Psych!';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90vh;
+    font: 800 160px / 1 'Google Sans', system-ui, sans-serif;
+    letter-spacing: -0.04em;
+    color: #171d19;
   }
 }
 
 /* ==========================================================================
-   Order of the Third Eye: parody honour for certificates with a DevTools trail.
+   DevSec: parody honour for certificates with a DevTools trail.
    Deliberately flat: one colour, thin lines, no shadows.
    ========================================================================== */
 .vf-impeccable {

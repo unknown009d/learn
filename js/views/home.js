@@ -28,7 +28,7 @@ export function renderHomeView() {
   const nextRoute = getNextRecommendedRoute();
 
   view.innerHTML = `
-    <section class="max-w-6xl mx-auto flex flex-col gap-6">
+    <section class="max-w-6xl mx-auto flex flex-col gap-6" data-selectable>
       <!-- Course Overview Header -->
       <div class="m3-card rounded-3xl p-6 sm:p-8 border m3-border-subtle">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">

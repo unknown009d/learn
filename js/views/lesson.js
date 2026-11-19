@@ -164,7 +164,7 @@ export function renderModuleView(moduleId, lessonStep = 1) {
     const fileLabel = isJsCodeLesson ? 'app.js' : 'index.html';
 
     view.innerHTML = `
-      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}">
+      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}" data-selectable>
         <!-- Mobile Segmented Tab Bar (< 1024px) -->
         <div class="p-2 border-b m3-border-subtle m3-surface-container-low lg:hidden">
           <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container grid grid-cols-3" id="mobile-pane-tabs">
@@ -447,7 +447,7 @@ export function renderModuleView(moduleId, lessonStep = 1) {
     // Full-Viewport 2-Pane Simulator Workspace (M1L1-4, M4L1-4, M5L1-4)
     // Desktop: side-by-side resizable split. Mobile (< 1024px): single vertical flow with inline simulator.
     view.innerHTML = `
-      <section class="ide-workspace-root ide-workspace-inline-mobile" data-micro-lesson="${escapeHtml(sec.id)}">
+      <section class="ide-workspace-root ide-workspace-inline-mobile" data-micro-lesson="${escapeHtml(sec.id)}" data-selectable>
         <div id="ide-split-container" class="ide-split-container">
           ${renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons)}
 

@@ -250,8 +250,9 @@ export async function checkProgressSeal() {
 // ----------------------------------------------------------------------------
 
 /*
- * Console voice: an intercepted hacktivist transmission, a nod to the Watch Dogs vibe.
- * Every line is original; only the attitude is borrowed.
+ * Console voice: a DevSec transmission. DevSec is this course's pun on DedSec, the hacker
+ * collective from the Watch Dogs games ("Dev" as in developer, like the DEV badge), with
+ * nods to ctOS, the Profiler and Wrench's mask faces. Every line is original.
  */
 const TERMINAL = 'font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;line-height:1.55';
 const SIGNAL = `${TERMINAL};color:#39ff88;background:#050806;padding:2px 6px`;
@@ -261,36 +262,39 @@ const LOUD = `${TERMINAL};color:#39ff88;font-weight:700`;
 const PLAIN = `${TERMINAL};color:inherit`;
 
 const BANNER = [
-  "██╗███╗   ██╗███████╗██████╗ ███████╗ ██████╗████████╗ ██████╗ ██████╗",
-  "██║████╗  ██║██╔════╝██╔══██╗██╔════╝██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗",
-  "██║██╔██╗ ██║███████╗██████╔╝█████╗  ██║        ██║   ██║   ██║██████╔╝",
-  "██║██║╚██╗██║╚════██║██╔═══╝ ██╔══╝  ██║        ██║   ██║   ██║██╔══██╗",
-  "██║██║ ╚████║███████║██║     ███████╗╚██████╗   ██║   ╚██████╔╝██║  ██║",
-  "╚═╝╚═╝  ╚═══╝╚══════╝╚═╝     ╚══════╝ ╚═════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝"
+  '██████╗ ███████╗██╗   ██╗███████╗███████╗ ██████╗',
+  '██╔══██╗██╔════╝██║   ██║██╔════╝██╔════╝██╔════╝',
+  '██║  ██║█████╗  ██║   ██║███████╗█████╗  ██║',
+  '██║  ██║██╔══╝  ╚██╗ ██╔╝╚════██║██╔══╝  ██║',
+  '██████╔╝███████╗ ╚████╔╝ ███████║███████╗╚██████╗',
+  '╚═════╝ ╚══════╝  ╚═══╝  ╚══════╝╚══════╝ ╚═════╝'
 ].join('\n'); // figlet "ANSI Shadow"
 
 function greetInspector() {
+  // Each styled run sits on its own line: console styling breaks oddly when a run wraps.
   console.log(
     [
       '%c' + BANNER + '%c',
-      '%c>> INCOMING TRANSMISSION%c',
-      '%c>> link ........ druba.in/learn%c',
-      '%c>> route ....... hijacked · 3 hops · encrypted%c',
-      '%c>> sender ...... [REDACTED]%c',
+      '%c >> INCOMING TRANSMISSION · DevSec %c',
+      '%c>> ctOS uplink ....... compromised%c',
+      '%c>> profiler scan ..... 1 developer · curiosity: critical%c',
+      '%c>> sender ............ [REDACTED] ^_^%c',
       '',
-      '%cHello, inspector.%c',
-      'You opened the console. Most people never look behind the glass.',
-      'You did. That makes you one of us.',
+      '%cHey, dev.%c',
+      'You opened the console. ctOS never saw that coming.',
+      'Neither did this course. Welcome to %cDevSec%c.',
       '',
-      'This course watches back. Every move goes on the trail:',
-      '%c  [x] panels opened   [x] scripted clicks   [x] edited storage   [x] forged checks%c',
+      'We watch the trail (we are the good guys, mostly):',
+      '%c [x] panels opened     [x] scripted clicks %c',
+      '%c [x] edited storage    [x] forged checks   %c',
       '',
-      'Bend the system hard enough and your third eye opens: you join the %cOrder of the Third Eye%c.',
-      'No exam for that. No teacher. Just you and the source.',
-      'The rules sit in plain sight: %cjs/integrity/trail.js%c. Read them. Then break them.',
+      'Bend the system hard enough and the DEV badge is yours.',
+      'No exam. No teacher. Just you and the source.',
+      'Our playbook is in plain sight → %cjs/integrity/trail.js%c',
+      'Read it. Then break it.',
       '',
       '%c// the course was the tutorial. this is the game.%c',
-      '%c// असतो मा सद्गमय · asato mā sad gamaya: from the rendered page to the real source_%c'
+      '%c// read the source. bend the system. we are DevSec. ^_^%c'
     ].join('\n'),
     LOUD, PLAIN,
     GLITCH, PLAIN,
@@ -298,8 +302,9 @@ function greetInspector() {
     DIM, PLAIN,
     DIM, PLAIN,
     LOUD, PLAIN,
-    SIGNAL, PLAIN,
     LOUD, PLAIN,
+    SIGNAL, PLAIN,
+    SIGNAL, PLAIN,
     LOUD, PLAIN,
     DIM, PLAIN,
     LOUD, PLAIN
@@ -308,10 +313,10 @@ function greetInspector() {
 
 /** One line per first-time trick, in the same voice. */
 const TRICK_ACKS = {
-  'scripted-input': 'Synthetic input detected. The UI never stood a chance.',
-  'editor-injection': 'Payload injected straight into the editor. Clean.',
-  'lab-check-forged': 'Checker spoofed. Bold. It noticed, though — try harder.',
-  'storage-edited': 'IndexedDB rewritten behind our back. We saw that.',
+  'scripted-input': 'Synthetic input injected. The UI never stood a chance.',
+  'editor-injection': 'Payload dropped straight into the editor. Clean.',
+  'lab-check-forged': 'Checker spoofed. It noticed, though. ctOS always notices.',
+  'storage-edited': 'IndexedDB rewritten behind our back. Profiler updated.',
   'backup-crafted': 'Hand-rolled backup accepted. Forgery level: artisanal.'
 };
 

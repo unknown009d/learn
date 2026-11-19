@@ -51,12 +51,12 @@ function renderStatusBanner({ valid, rank = null, badgeMarkup = '', error, refer
           ${source ? `<div class="text-xs font-mono font-bold uppercase tracking-wider opacity-80">${escapeHtml(source)}</div>` : ''}
           <div class="flex flex-wrap items-center justify-center sm:justify-start gap-2">
             <span class="badge badge-success font-bold">VERIFIED</span>
-            <span class="badge vf-order-chip font-bold" title="${escapeHtml(rank.fullTitle)} (${escapeHtml(rank.meaning)})">${escapeHtml(rank.title)}</span>
+            <span class="badge vf-order-chip font-bold" title="${escapeHtml(rank.fullTitle)}">${escapeHtml(rank.title)}</span>
           </div>
           <h2 class="text-xl sm:text-2xl font-extrabold mt-2 leading-snug">${escapeHtml(ORDER.headline)}</h2>
           <p class="text-sm opacity-90 mt-1.5">${escapeHtml(ORDER.subline)}</p>
-          <p class="text-xs mt-2 opacity-80"><strong>${escapeHtml(rank.fullTitle)}</strong> (${escapeHtml(rank.title.toLowerCase())}: ${escapeHtml(rank.meaning)}). ${escapeHtml(rank.blurb)}</p>
-          <p class="text-xs mt-1 opacity-80"><span lang="sa">${escapeHtml(ORDER.mottoScript)}</span> · <em>${escapeHtml(ORDER.motto)}</em> — ${escapeHtml(ORDER.mottoMeaning)}.</p>
+          <p class="text-xs mt-2 opacity-80"><strong>${escapeHtml(rank.fullTitle)}.</strong> ${escapeHtml(rank.blurb)}</p>
+          <p class="text-xs mt-1 opacity-80"><em>${escapeHtml(ORDER.motto)}</em> ${escapeHtml(ORDER.signoff)}</p>
           ${reference ? `<div class="text-xs font-mono opacity-80 mt-2">Verification Ref: ${escapeHtml(reference)}</div>` : ''}
         </div>
       </div>

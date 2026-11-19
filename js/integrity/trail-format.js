@@ -155,35 +155,32 @@ export function splitKeyAndTrail(raw) {
 }
 
 // ----------------------------------------------------------------------------
-// The Order of the Third Eye — a parody honour for learners who bent the app.
+// DevSec — a parody honour for learners who bent the app.
 // The certificate itself proves nothing about it (that's rather the point); the badge
 // is a wink from one tinkerer to another.
 //
-// DevTools is the learner's third eye (Shiva's trinetra): it sees what the page hides.
-// The badge reads DEV (देव, deva: a god), so the order speaks Sanskrit. Its motto is a line
-// from the Brihadaranyaka Upanishad (1.3.28): "lead me from the unreal to the real" —
-// here, from the rendered page to the real source.
+// DevSec is a pun on DedSec, the hacker collective from the Watch Dogs games, with "Dev" as
+// in developer — which is what the DEV on the badge stands for.
 // ----------------------------------------------------------------------------
 
 export const ORDER = {
-  name: 'Order of the Third Eye',
-  motto: 'Asato mā sad gamaya',
-  mottoScript: 'असतो मा सद्गमय',
-  mottoMeaning: 'lead me from the unreal to the real',
+  name: 'DevSec',
+  motto: 'Read the source. Bend the system.',
+  signoff: 'We are DevSec.',
   headline: 'Impeccable. You didn’t take the course — you took it apart.',
   subline: 'Signature verified. This learner skipped the tutorial, opened the hood and rewired the engine while it was running. Nobody taught them that. The trail below shows exactly how.'
 };
 
 /** Ranks by how many different hands-on tricks appear in the trail (there are five). */
 const RANKS = [
-  { min: 4, title: 'Deva', meaning: 'god', blurb: 'Bent the storage, the checker and the UI. The console bows. Probably reading this source right now.' },
-  { min: 2, title: 'Rishi', meaning: 'seer', blurb: 'Sees past the interface. More than one trick, and the patience to find them.' },
-  { min: 1, title: 'Shishya', meaning: 'disciple', blurb: 'First step behind the curtain. Every rishi started as a shishya.' }
+  { min: 4, title: 'Root', blurb: 'Bent the storage, the checker and the UI. Has root on this course, and probably on your Wi-Fi.' },
+  { min: 2, title: 'Hacktivist', blurb: 'More than one trick up the sleeve, all for a good cause. Probably.' },
+  { min: 1, title: 'Script Kiddie', blurb: 'First exploit landed. Everyone in DevSec started right here.' }
 ];
 
 /** @returns {null | { title: string, fullTitle: string, blurb: string, tricks: number }} */
 export function getMasteryRank(events) {
   const tricks = new Set((events || []).filter((e) => TRAIL_TYPES[e.type]?.mastery && Number(e.count) > 0).map((e) => e.type)).size;
   const rank = RANKS.find((r) => tricks >= r.min);
-  return rank ? { ...rank, fullTitle: `${rank.title} of the ${ORDER.name}`, tricks } : null;
+  return rank ? { ...rank, fullTitle: `${rank.title} of ${ORDER.name}`, tricks } : null;
 }

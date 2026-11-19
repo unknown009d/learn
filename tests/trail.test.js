@@ -36,8 +36,8 @@ test('verification code and trail split on "~"', () => {
 test('only hands-on signals earn the mastery badge, ranked by variety', () => {
   assert.equal(isMasteryTrail([sample[0]]), false, 'just opening DevTools is not mastery');
   assert.equal(getMasteryRank([sample[0]]), null);
-  assert.equal(getMasteryRank(sample.slice(0, 2)).title, 'Shishya');
-  assert.equal(getMasteryRank(sample).title, 'Rishi');
+  assert.equal(getMasteryRank(sample.slice(0, 2)).title, 'Script Kiddie');
+  assert.equal(getMasteryRank(sample).title, 'Hacktivist');
   const four = ['scripted-input', 'editor-injection', 'lab-check-forged', 'storage-edited'].map((type) => ({ type, count: 1 }));
-  assert.equal(getMasteryRank(four).title, 'Deva');
+  assert.equal(getMasteryRank(four).title, 'Root');
 });
