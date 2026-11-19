@@ -1,10 +1,10 @@
 /**
  * Native IndexedDB Storage Wrapper for Vanilla Web Foundations
- * Object stores: student_profile, quizzes, practicals, lesson_progress, certificates
+ * Object stores: student_profile, quizzes, practicals, lesson_progress, certificates, trail
  */
 
 const DB_NAME = 'druba_web_learning_db';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise = null;
 const memoryFallback = {
@@ -12,8 +12,25 @@ const memoryFallback = {
   quizzes: new Map(),
   practicals: new Map(),
   lesson_progress: new Map(),
-  certificates: new Map()
+  certificates: new Map(),
+  trail: new Map()
 };
+
+/**
+ * Called after every progress write the app makes (not trail or certificate-cache writes).
+ * The inspection trail uses it to re-seal progress, so edits made outside the app stand out.
+ */
+let afterProgressWrite = null;
+export function setAfterProgressWriteHook(fn) {
+  afterProgressWrite = typeof fn === 'function' ? fn : null;
+}
+async function notifyProgressWrite() {
+  try {
+    await afterProgressWrite?.();
+  } catch (err) {
+    console.warn('[db.js] after-write hook failed:', err);
+  }
+}
 
 function openDatabase() {
   if (dbPromise) return dbPromise;
@@ -42,6 +59,9 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains('certificates')) {
         db.createObjectStore('certificates', { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains('trail')) {
+        db.createObjectStore('trail', { keyPath: 'key' });
       }
     };
 
@@ -93,6 +113,7 @@ export async function saveProfile(data) {
   }
   memoryFallback.student_profile.set('current', record);
   await withStore('student_profile', 'readwrite', (s) => s.put(record));
+  await notifyProgressWrite();
   return record;
 }
 
@@ -138,6 +159,7 @@ export async function saveQuizAttempt(moduleId, scorePercent, passed, details = 
 
   memoryFallback.quizzes.set(numId, record);
   await withStore('quizzes', 'readwrite', (s) => s.put(record));
+  await notifyProgressWrite();
   return record;
 }
 
@@ -186,6 +208,7 @@ export async function savePracticalProgress(labId, patch = {}) {
 
   memoryFallback.practicals.set(numId, record);
   await withStore('practicals', 'readwrite', (s) => s.put(record));
+  await notifyProgressWrite();
   return record;
 }
 
@@ -211,15 +234,17 @@ export async function markLessonCompleted(moduleId, lessonId, lessonIndex) {
   };
   memoryFallback.lesson_progress.set(lessonKey, record);
   await withStore('lesson_progress', 'readwrite', (s) => s.put(record));
+  await notifyProgressWrite();
   return record;
 }
 
 export async function exportFullState() {
-  const [profile, quizzes, practicals, lessons] = await Promise.all([
+  const [profile, quizzes, practicals, lessons, trail] = await Promise.all([
     getProfile(),
     getAllQuizzes(),
     getAllPracticals(),
-    getAllLessonProgress()
+    getAllLessonProgress(),
+    getTrailEvents()
   ]);
 
   return {
@@ -230,7 +255,8 @@ export async function exportFullState() {
     profile,
     quizzes,
     practicals,
-    lessons
+    lessons,
+    trail
   };
 }
 
@@ -244,7 +270,10 @@ export async function importFullState(stateObj) {
 
   await clearAllData();
 
-  await saveProfile(stateObj.profile);
+  // Write the profile directly: the seal is refreshed once at the end of the import.
+  const profileRecord = { ...stateObj.profile, id: 'current' };
+  memoryFallback.student_profile.set('current', profileRecord);
+  await withStore('student_profile', 'readwrite', (s) => s.put(profileRecord));
 
   if (Array.isArray(stateObj.quizzes)) {
     for (const q of stateObj.quizzes) {
@@ -276,7 +305,30 @@ export async function importFullState(stateObj) {
     }
   }
 
+  if (Array.isArray(stateObj.trail)) {
+    for (const t of stateObj.trail) {
+      if (t && typeof t.key === 'string') await putTrailEvent(t);
+    }
+  }
+
+  await notifyProgressWrite();
   return exportFullState();
+}
+
+// ----------------------------------------------------------------------------
+// Inspection trail (see js/integrity/trail.js)
+// ----------------------------------------------------------------------------
+
+export async function getTrailEvents() {
+  const list = await withStore('trail', 'readonly', (s) => s.getAll());
+  const events = Array.isArray(list) ? list : Array.from(memoryFallback.trail.values());
+  return events.sort((a, b) => String(a.firstAt).localeCompare(String(b.firstAt)));
+}
+
+export async function putTrailEvent(event) {
+  memoryFallback.trail.set(event.key, event);
+  await withStore('trail', 'readwrite', (s) => s.put(event));
+  return event;
 }
 
 export async function getCachedCertificate() {
@@ -307,10 +359,13 @@ export async function clearAllData() {
   memoryFallback.practicals.clear();
   memoryFallback.lesson_progress.clear();
   memoryFallback.certificates.clear();
+  memoryFallback.trail.clear();
 
   await withStore('student_profile', 'readwrite', (s) => s.clear());
   await withStore('quizzes', 'readwrite', (s) => s.clear());
   await withStore('practicals', 'readwrite', (s) => s.clear());
   await withStore('lesson_progress', 'readwrite', (s) => s.clear());
   await withStore('certificates', 'readwrite', (s) => s.clear());
+  await withStore('trail', 'readwrite', (s) => s.clear());
+  await notifyProgressWrite();
 }

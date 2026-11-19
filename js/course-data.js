@@ -513,7 +513,7 @@ export const MODULES = [
             },
             {
               label: 'Simulate confirm()',
-              code: `const agreed = confirm("Submit Lab 5 now?");\nconsole.log("User confirmed?", agreed);\nreturn { popupType: "confirm", agreed };`
+              code: `const agreed = confirm("Submit Lab 4 now?");\nconsole.log("User confirmed?", agreed);\nreturn { popupType: "confirm", agreed };`
             },
             {
               label: 'Simulate prompt()',
@@ -929,4 +929,10 @@ export const BONUS_MODULE = {
 
 export function getModuleById(id) {
   return MODULES.find((m) => m.id === Number(id)) || null;
+}
+
+/** The module after `id` in course order, or null after the last one. */
+export function getNextModule(id) {
+  const idx = MODULES.findIndex((m) => m.id === Number(id));
+  return idx >= 0 ? MODULES[idx + 1] || null : null;
 }

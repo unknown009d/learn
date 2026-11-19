@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Pinch / double-tap zoom is disabled on purpose (see js/ui/content-guard.js) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Vanilla Web Foundations | druba.in</title>
   <meta name="description"
     content="Interactive learning workspace for Vanilla Web Foundations — HTML, CSS, and JavaScript basics by druba.in.">
@@ -39,10 +40,7 @@
   <link rel="stylesheet" href="./vendor/codemirror/codemirror.bundle.min.css">
   <script defer src="./vendor/codemirror/codemirror.bundle.min.js"></script>
 
-  <!-- Self-Hosted QR & Certificate Utilities -->
-  <script defer src="./vendor/qrious.min.js"></script>
-  <script defer src="./vendor/html2canvas.min.js"></script>
-  <script defer src="./vendor/jsQR.min.js"></script>
+  <!-- QR (qrious, jsQR) and image export (html2canvas) load on demand from ./vendor when needed -->
 
   <!-- Resolve theme before CSS renders to prevent flash of wrong theme -->
   <script>
@@ -153,10 +151,11 @@
     <!-- Compact Mastery Pill + Desktop Actions + Mobile Menu -->
     <div class="flex items-center gap-1.5 shrink-0">
       <div
-        class="hidden sm:flex items-center gap-1.5 m3-surface-container px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0"
+        class="flex items-center gap-1 sm:gap-1.5 m3-surface-container px-2 sm:px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0"
         title="Overall Course Progress">
-        <span class="material-symbols-outlined m3-text-primary text-[15px]">workspace_premium</span>
-        <span id="nav-progress-label" class="font-mono font-semibold">0/13 &middot; 0%</span>
+        <span class="material-symbols-outlined m3-text-primary text-[15px]" aria-hidden="true">workspace_premium</span>
+        <span id="nav-progress-label" class="font-mono font-semibold hidden sm:inline">0/13 &middot; 0%</span>
+        <span id="nav-progress-label-compact" class="font-mono font-semibold sm:hidden">0%</span>
       </div>
 
       <!-- Desktop Horizontal Actions (>= 1024px) -->

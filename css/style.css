@@ -2478,3 +2478,80 @@ html.is-mod-key-held .m3-kbd-on-primary {
     height: 7px;
   }
 }
+/* ==========================================================================
+   Content protection (see js/ui/content-guard.js)
+   Course text can't be selected or long-pressed; editors, form fields and the
+   backup / verification code boxes stay fully selectable.
+   ========================================================================== */
+html,
+body {
+  touch-action: pan-x pan-y; /* no pinch or double-tap zoom */
+}
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+select,
+[contenteditable=""],
+[contenteditable="true"],
+.CodeMirror,
+.CodeMirror *,
+.allow-select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+@media print {
+  [data-protected-content],
+  #quick-check-modal {
+    display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Order of the Third Eye: parody honour for certificates with a DevTools trail.
+   Deliberately flat: one colour, thin lines, no shadows.
+   ========================================================================== */
+.vf-impeccable {
+  color: var(--m3-text);
+  border-color: var(--m3-primary) !important;
+  background: var(--m3-surface);
+}
+
+.vf-order-seal {
+  display: block;
+  color: var(--m3-primary); /* badge artwork uses currentColor */
+}
+
+.vf-order-chip {
+  height: auto;
+  min-height: 1.25rem;
+  padding-block: 0.15rem;
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
+  background: transparent;
+  border: 1px solid var(--m3-primary);
+  color: var(--m3-primary);
+}
+
+/* Certificate: the Mastery seal crowns the top centre, overlapping the header row. */
+.m3-a4-certificate-inner {
+  position: relative;
+}
+
+.cert-mastery-seal {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #6e6d7a; /* the artwork's own grey */
+  line-height: 0;
+  pointer-events: none;
+}

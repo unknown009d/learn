@@ -105,7 +105,7 @@ function slugify(str) {
 async function discoverMaterialIcons() {
   const icons = new Set(EXTRA_ICONS);
   const scanFiles = [path.join(ROOT_DIR, 'index.html')];
-  const jsEntries = await fs.readdir(path.join(ROOT_DIR, 'js'));
+  const jsEntries = await fs.readdir(path.join(ROOT_DIR, 'js'), { recursive: true });
   for (const name of jsEntries) {
     if (name.endsWith('.js')) scanFiles.push(path.join(ROOT_DIR, 'js', name));
   }

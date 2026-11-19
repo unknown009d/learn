@@ -1,0 +1,9 @@
+{
+  "name": "vanilla-web-foundations",
+  "private": true,
+  "type": "module",
+  "description": "Static learning workspace for Vanilla Web Foundations (druba.in/learn). No build step: serve the folder as-is.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  }
+}

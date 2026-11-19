@@ -4,6 +4,10 @@
  */
 
 import { savePracticalProgress } from './db.js';
+import { recordTrail, msSinceTrustedInput } from './integrity/trail.js';
+
+/** CodeMirror change origins that only come from a person using the editor. */
+const USER_EDIT_ORIGINS = new Set(['+input', '+delete', 'paste', 'cut', 'drag', 'undo', 'redo', 'complete', 'emmet', '*compose', '+move']);
 
 const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
@@ -341,6 +345,7 @@ function __verifyLabInIframe(__meta) {
   window.parent.postMessage({
     type: 'LAB_VERIFY_RESULT',
     runToken: window.__RUN_TOKEN || '',
+    nonce: __meta.nonce,
     labId: __meta.labId,
     results,
     passedAssertions,
@@ -352,8 +357,14 @@ function __verifyLabInIframe(__meta) {
 /**
  * Generates the automated assertion script injected inside the sandboxed iframe for Labs 1-8.
  */
-function getLabVerificationScript(labId, rawHtml, rawCss, rawJs) {
+/**
+ * The nonce is a per-run secret baked into the checker script. The parent only trusts a
+ * result that carries it, so a page that simply posts { passedAssertions: 4 } gets caught.
+ * (Reading the nonce out of the checker before it runs is possible. That's the mastery path.)
+ */
+export function getLabVerificationScript(labId, rawHtml, rawCss, rawJs, nonce = '') {
   const safeMeta = JSON.stringify({
+    nonce,
     labId: Number(labId),
     htmlCode: rawHtml,
     cssCode: rawCss,
@@ -626,6 +637,7 @@ export class LabIDEController {
 
         cm.on('change', (_instance, changeObj) => {
           this.code[spec.key] = cm.getValue();
+          this.noteInjectedEdit(changeObj.origin);
           if (changeObj.origin !== 'setValue') {
             if (changeObj.origin === 'paste') {
               this.recordPaste();
@@ -860,7 +872,7 @@ export class LabIDEController {
 
       if (btn.dataset.action === 'emmet') {
         if (cm) {
-          this.tryExpandEmmetInCodeMirror(cm, this.activeTab);
+          this.internalEdit(() => this.tryExpandEmmetInCodeMirror(cm, this.activeTab));
           cm.focus();
         } else if (ta) {
           this.tryExpandEmmetInTextarea(ta, this.activeTab);
@@ -872,7 +884,7 @@ export class LabIDEController {
 
       const sym = btn.dataset.symbol;
       if (cm) {
-        cm.replaceSelection(sym, 'end');
+        this.internalEdit(() => cm.replaceSelection(sym, 'end'));
         cm.focus();
       } else if (ta) {
         this.insertAtTextarea(ta, sym);
@@ -925,6 +937,19 @@ export class LabIDEController {
     this.lastTypeTs = Date.now();
   }
 
+  /**
+   * An edit with no person behind it: not one of the app's own edits, not a user-only origin,
+   * and no real keystroke / tap / paste in the last moments. That is code written into
+   * CodeMirror from outside, e.g. `cm.setValue(...)` in the console.
+   */
+  noteInjectedEdit(origin) {
+    if (this.isInternalEdit || USER_EDIT_ORIGINS.has(origin) || msSinceTrustedInput() < 1500) return;
+    const now = Date.now();
+    if (now - (this.lastInjectionAt || 0) < 3000) return; // one entry per burst
+    this.lastInjectionAt = now;
+    recordTrail('editor-injection', { detail: `Origin "${origin || 'none'}" in ${this.activeTab}` });
+  }
+
   recordPaste() {
     this.telemetry.pasteCount += 1;
     this.onTelemetryUpdate({ ...this.telemetry });
@@ -951,9 +976,19 @@ export class LabIDEController {
     }, 150);
   }
 
+  /** Run an edit the app makes itself (reset, presets) without flagging it as injected code. */
+  internalEdit(fn) {
+    this.isInternalEdit = true;
+    try {
+      fn();
+    } finally {
+      this.isInternalEdit = false;
+    }
+  }
+
   setCode(tabKey, value) {
     this.code[tabKey] = value;
-    if (this.editors[tabKey]) this.editors[tabKey].setValue(value);
+    if (this.editors[tabKey]) this.internalEdit(() => this.editors[tabKey].setValue(value));
     if (this.fallbacks[tabKey]) this.fallbacks[tabKey].value = value;
     this.runPreviewOnly();
   }
@@ -981,7 +1016,7 @@ export class LabIDEController {
       js: this.lab.starterJs || ''
     };
     for (const key of ['html', 'css', 'js']) {
-      if (this.editors[key]) this.editors[key].setValue(this.code[key]);
+      if (this.editors[key]) this.internalEdit(() => this.editors[key].setValue(this.code[key]));
       if (this.fallbacks[key]) this.fallbacks[key].value = this.code[key];
     }
     this.persistDraft();
@@ -1009,6 +1044,8 @@ export class LabIDEController {
     if (this.containers.consoleCountEl) this.containers.consoleCountEl.textContent = '0';
     const token = 'ver_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
     this.activeRunToken = token;
+    this.verifyNonce = this.isBonus ? '' : crypto.getRandomValues(new Uint32Array(4)).join('-');
+    this.acceptedResultToken = null;
 
     clearTimeout(this.verifyTimeout);
     this.verifyTimeout = setTimeout(() => {
@@ -1022,10 +1059,31 @@ export class LabIDEController {
 
     const verifierScript = this.isBonus
       ? ''
-      : getLabVerificationScript(this.lab.id, this.code.html, this.code.css, this.code.js);
+      : getLabVerificationScript(this.lab.id, this.code.html, this.code.css, this.code.js, this.verifyNonce);
 
     const srcdoc = composeSrcDoc(this.code.html, this.code.css, this.code.js, verifierScript, token);
     this.containers.iframe.srcdoc = srcdoc;
+  }
+
+  /**
+   * Only the checker injected for this run may report a result. Anything else is a forged
+   * result: it is ignored, and the attempt goes on the inspection trail.
+   */
+  isGenuineVerifyResult(data) {
+    const where = this.lab.code || 'Lab';
+    const expectedChecks = (this.lab.checksDescription || []).length;
+    let problem = '';
+    if (!String(data.runToken).startsWith('ver_') || !this.verifyNonce) problem = 'Result posted during a plain preview run';
+    else if (data.nonce !== this.verifyNonce) problem = "Result without the checker's nonce";
+    else if (this.acceptedResultToken === data.runToken) problem = 'Second result for one check run';
+    else if (expectedChecks && data.totalAssertions !== expectedChecks) problem = `Reported ${data.totalAssertions} checks, lab has ${expectedChecks}`;
+
+    if (problem) {
+      recordTrail('lab-check-forged', { where, detail: problem });
+      return false;
+    }
+    this.acceptedResultToken = data.runToken;
+    return true;
   }
 
   bindPostMessageListener() {
@@ -1055,6 +1113,7 @@ export class LabIDEController {
       }
 
       if (data.type === 'LAB_VERIFY_RESULT') {
+        if (!this.isGenuineVerifyResult(data)) return;
         clearTimeout(this.verifyTimeout);
         const allPassed = data.totalAssertions > 0 && data.passedAssertions === data.totalAssertions;
 
@@ -1085,7 +1144,11 @@ export class LabIDEController {
     window.addEventListener('message', this.messageListener);
   }
 
-  destroy() {
+  /**
+   * @param {{ persist?: boolean }} [opts] persist=false discards unsaved editor state — used right
+   *   before progress is replaced (backup import / reset) so stale code can't overwrite it.
+   */
+  destroy({ persist = true } = {}) {
     clearInterval(this.typingInterval);
     clearTimeout(this.saveTimeout);
     clearTimeout(this.changeTimeout);
@@ -1093,6 +1156,6 @@ export class LabIDEController {
     if (this.messageListener) {
       window.removeEventListener('message', this.messageListener);
     }
-    this.persistDraft();
+    if (persist) this.persistDraft();
   }
 }

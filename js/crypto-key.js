@@ -378,11 +378,11 @@ export async function verifyCompletionKey(rawKey) {
       signature: parsed.s,
       error: valid ? null : 'This verification code has an invalid or forged signature.'
     };
-  } catch (err) {
+  } catch {
     return {
       valid: false,
       tampered: true,
-      error: `Could not read this verification code: ${err.message}`
+      error: 'This verification code is incomplete or damaged. Copy the entire code (it is long) and try again.'
     };
   }
 }
@@ -454,11 +454,11 @@ export async function verifyCompactQrToken(tokenString) {
       verifyId,
       error
     };
-  } catch (err) {
+  } catch {
     return {
       valid: false,
       tampered: true,
-      error: `Could not read QR verification code: ${err.message}`
+      error: 'This QR verification link is incomplete or damaged. Scan the QR code again or copy the full link.'
     };
   }
 }
@@ -483,14 +483,25 @@ export async function computeVwfdSignature(payload) {
   return sha256Hex(`${jsonStr}|${VWFD_BACKUP_SECRET}`);
 }
 
+/**
+ * v2 backups also carry an integrity seal over the payload. Exported backups always have a
+ * correct one; a backup assembled by hand (signature recomputed from this file) usually doesn't,
+ * and that shows up on the inspection trail. v1 backups predate the seal and are accepted as-is.
+ */
+const VWFD_SEAL_PEPPER = 'vwfd-seal-v2|';
+async function computeVwfdSeal(payload) {
+  return sha256Hex(VWFD_SEAL_PEPPER + JSON.stringify(canonicalizeForSigning(payload)));
+}
+
 export async function encodeBackupToken(fullState) {
   const signature = await computeVwfdSignature(fullState);
   const envelope = {
     format: 'VWFD',
-    v: 1,
+    v: 2,
     issuedAt: new Date().toISOString(),
     payload: fullState,
-    signature
+    signature,
+    seal: await computeVwfdSeal(fullState)
   };
   const envelopeJson = JSON.stringify(envelope);
   const { compressed, bytes } = await gzipText(envelopeJson);
@@ -498,7 +509,13 @@ export async function encodeBackupToken(fullState) {
   return prefix + bytesToBase64Url(bytes);
 }
 
+/** @returns {Promise<object>} the saved progress inside a backup */
 export async function decodeBackupToken(tokenString) {
+  return (await decodeBackupTokenDetailed(tokenString)).payload;
+}
+
+/** @returns {Promise<{ payload: object, crafted: boolean }>} */
+export async function decodeBackupTokenDetailed(tokenString) {
   const trimmed = String(tokenString || '').trim();
   if (!trimmed) {
     throw new Error('Please choose a saved progress file (.vwfd) or paste your backup text first.');
@@ -544,7 +561,8 @@ export async function decodeBackupToken(tokenString) {
     throw new Error('Tamper detection alert: This backup file has an invalid or forged signature.');
   }
 
-  return envelope.payload;
+  const crafted = envelope.v >= 2 && envelope.seal !== (await computeVwfdSeal(envelope.payload));
+  return { payload: envelope.payload, crafted };
 }
 
 export { encodeBackupToken as encodeVwfdBackup, decodeBackupToken as decodeVwfdBackup };

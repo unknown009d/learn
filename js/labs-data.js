@@ -1,6 +1,10 @@
 /**
  * Practical Labs (Labs 1 to 8) — Learning the Web with Basics of Vanilla Front-End Tools
  * Sequentially gated behind each module's Graded MCQ checkpoint.
+ *
+ * Array order = course order. `id` is the permanent storage key (saved progress and issued
+ * certificates reference it), while `code` is the label learners see, so labs can be
+ * renumbered for display without breaking anyone's progress.
  */
 
 export const LABS = [
@@ -120,43 +124,9 @@ export const LABS = [
   },
 
   {
-    id: 4,
-    moduleId: 4,
-    code: 'Lab 4',
-    title: 'Apply Internal & External CSS',
-    syllabusRef: 'Goal: Style a web page using both a <style> tag in HTML and separate rules in style.css.',
-    estimatedMinutes: 15,
-    tabs: ['html', 'css'],
-    instructions: [
-      'Inside the HTML tab, add a <style>...</style> block to set the page background color or font.',
-      'Open the style.css tab and add styles using a class selector (like .highlight) or an ID selector (like #title).',
-      'Make sure your colors, backgrounds, or padding visibly style the heading and paragraph in the preview.'
-    ],
-    hint: `HTML tab:\n<style>\n  body { background-color: #f4fbf6; font-family: Arial, sans-serif; }\n</style>\n<h1 id="title">Vanilla Web Foundations</h1>\n<p class="notice">Classes begin at 10:30 AM.</p>\n\nstyle.css tab:\n#title { color: darkgreen; text-align: center; }\n.notice { color: #b91c1c; background: #fee2e2; padding: 12px; border-radius: 8px; }`,
-    starterHtml: `<!-- Lab 4: Add an internal <style> tag below -->
-<style>
-  /* TODO: Style body font-family or background-color here */
-</style>
-
-<h1 id="title">Welcome to Web Design</h1>
-<p class="highlight">Styled using both internal and external CSS.</p>
-`,
-    starterCss: `/* External CSS (style.css) */
-/* TODO: Style #title and .highlight with color, padding, or background */
-`,
-    starterJs: '',
-    checksDescription: [
-      'HTML tab includes a <style> block with at least one CSS rule',
-      'The style.css tab contains styling rules',
-      'Uses a class (.) or ID (#) selector to target elements',
-      'Custom colors, backgrounds, or spacing visibly appear on the page'
-    ]
-  },
-
-  {
     id: 5,
     moduleId: 3,
-    code: 'Lab 5',
+    code: 'Lab 4',
     title: 'JS Form Validation with try...catch',
     syllabusRef: 'Goal: Check form fields with JavaScript and show clear feedback messages.',
     estimatedMinutes: 20,
@@ -197,7 +167,7 @@ form.addEventListener("submit", function (e) {
   {
     id: 6,
     moduleId: 3,
-    code: 'Lab 6',
+    code: 'Lab 5',
     title: 'Dynamic Date & Time with Date Object',
     syllabusRef: 'Goal: Build a live digital clock that displays today\'s date and ticks every second.',
     estimatedMinutes: 15,
@@ -228,6 +198,40 @@ updateClock();
       'Page shows today\'s date including the current year',
       'Page shows the formatted time (HH:MM)',
       'Uses setInterval or setTimeout to refresh live every second'
+    ]
+  },
+
+  {
+    id: 4,
+    moduleId: 4,
+    code: 'Lab 6',
+    title: 'Apply Internal & External CSS',
+    syllabusRef: 'Goal: Style a web page using both a <style> tag in HTML and separate rules in style.css.',
+    estimatedMinutes: 15,
+    tabs: ['html', 'css'],
+    instructions: [
+      'Inside the HTML tab, add a <style>...</style> block to set the page background color or font.',
+      'Open the style.css tab and add styles using a class selector (like .highlight) or an ID selector (like #title).',
+      'Make sure your colors, backgrounds, or padding visibly style the heading and paragraph in the preview.'
+    ],
+    hint: `HTML tab:\n<style>\n  body { background-color: #f4fbf6; font-family: Arial, sans-serif; }\n</style>\n<h1 id="title">Vanilla Web Foundations</h1>\n<p class="notice">Classes begin at 10:30 AM.</p>\n\nstyle.css tab:\n#title { color: darkgreen; text-align: center; }\n.notice { color: #b91c1c; background: #fee2e2; padding: 12px; border-radius: 8px; }`,
+    starterHtml: `<!-- Lab 6: Add an internal <style> tag below -->
+<style>
+  /* TODO: Style body font-family or background-color here */
+</style>
+
+<h1 id="title">Welcome to Web Design</h1>
+<p class="highlight">Styled using both internal and external CSS.</p>
+`,
+    starterCss: `/* External CSS (style.css) */
+/* TODO: Style #title and .highlight with color, padding, or background */
+`,
+    starterJs: '',
+    checksDescription: [
+      'HTML tab includes a <style> block with at least one CSS rule',
+      'The style.css tab contains styling rules',
+      'Uses a class (.) or ID (#) selector to target elements',
+      'Custom colors, backgrounds, or spacing visibly appear on the page'
     ]
   },
 
