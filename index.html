@@ -104,58 +104,26 @@
 
   <!-- Material Design 3 Font & Icon Readiness Splash Overlay -->
   <div id="app-boot-loader" role="status" aria-live="polite" aria-label="Loading workspace"
-    style="position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;background:#f6faf6;color:#171d19;font-family:'Google Sans','Plus Jakarta Sans','Inter',system-ui,-apple-system,sans-serif;transition:opacity 220ms cubic-bezier(0.2,0,0,1);">
+    class="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4.5 p-6 bg-[#f6faf6] dark:bg-[#111411] text-[#171d19] dark:text-[#e1e4df] font-sans transition-opacity duration-200">
     <style>
-      [data-theme="m3-dark"] #app-boot-loader {
-        background: #111411 !important;
-        color: #e1e4df !important;
-      }
-
-      [data-theme="m3-dark"] #app-boot-loader .m3-boot-card {
-        background: #111411 !important;
-        /* box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35) !important; */
-      }
-
-      [data-theme="m3-dark"] #app-boot-loader .m3-boot-ring-track {
-        stroke: #262c27 !important;
-      }
-
-      [data-theme="m3-dark"] #app-boot-loader .m3-boot-ring-arc {
-        stroke: #34d375 !important;
-      }
-
-      [data-theme="m3-dark"] #app-boot-loader .m3-boot-sub {
-        color: #9ca69d !important;
-      }
-
       @keyframes m3BootRotate {
-        0% {
-          transform: rotate(0deg);
-        }
-
-        100% {
-          transform: rotate(360deg);
-        }
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
-
       @media print {
-        #app-boot-loader {
-          display: none !important;
-        }
+        #app-boot-loader { display: none !important; }
       }
     </style>
-    <div class="m3-boot-card"
-      style="display:flex;flex-direction:column;align-items:center;gap:.5rem;padding:28px 32px;border-radius:24px;background:#F6FAF6;min-width:260px;text-align:center;">
+    <div class="m3-boot-card flex flex-col items-center gap-2 py-7 px-8 rounded-3xl bg-[#f6faf6] dark:bg-[#111411] min-w-[260px] text-center">
       <svg width="42" height="42" viewBox="0 0 42 42" fill="none" aria-hidden="true"
-        style="display:block;animation:m3BootRotate 0.95s linear infinite;margin-bottom: 1rem;">
-        <circle class="m3-boot-ring-track" cx="21" cy="21" r="17" stroke="#d1e8d4" stroke-width="3.5" />
-        <path class="m3-boot-ring-arc" d="M21 4a17 17 0 0 1 17 17" stroke="#0e7a3a" stroke-width="3.5"
-          stroke-linecap="round" />
+        class="block mb-4" style="animation:m3BootRotate 0.95s linear infinite;">
+        <circle class="stroke-[#d1e8d4] dark:stroke-[#262c27]" cx="21" cy="21" r="17" stroke-width="3.5" />
+        <path class="stroke-[#0e7a3a] dark:stroke-[#34d375]" d="M21 4a17 17 0 0 1 17 17" stroke-width="3.5" stroke-linecap="round" />
       </svg>
-      <div style="font-size:15px;font-weight:600;letter-spacing:-0.01em;line-height:1.3;">
+      <div class="text-[15px] font-semibold tracking-tight leading-snug">
         Loading Workspace...
       </div>
-      <div class="m3-boot-sub" style="font-size:12px;color:#414942;line-height:1.4;">
+      <div class="m3-boot-sub text-xs text-neutral-600 dark:text-neutral-400 leading-normal">
         Vanilla Web Foundations
       </div>
     </div>
@@ -193,7 +161,7 @@
       <div
         class="hidden sm:flex items-center gap-1.5 m3-surface-container px-2.5 py-1 rounded-full border m3-border-subtle text-xs shrink-0"
         title="Overall Course Progress">
-        <span class="material-symbols-outlined m3-text-primary" style="font-size:15px">workspace_premium</span>
+        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-[15px]">workspace_premium</span>
         <span id="nav-progress-label" class="font-mono font-semibold">0/13 &middot; 0%</span>
       </div>
 
