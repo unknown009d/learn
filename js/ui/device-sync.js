@@ -71,10 +71,48 @@ export function exitDeviceSync(returnTab) {
 
 /* ------------------------------------------------------------------- send */
 
-function renderFrameCanvas(value) {
+function renderRawFrame(value) {
   const c = document.createElement('canvas');
   new window.QRious({ element: c, value, size: QR_PIXELS, padding: 0, level: 'L', background: '#ffffff', foreground: '#000000' });
   return c;
+}
+
+/**
+ * QRious draws whole-pixel modules, so the code covers less than the canvas and the spare
+ * pixels pile up on the right and bottom, pushing it off-centre. Find the code's real bounds
+ * (every frame has the same QR version, so the first frame is enough) and crop all frames to it.
+ */
+function findQrBounds(canvas) {
+  const { width: w, height: h } = canvas;
+  const px = canvas.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+  let minX = w;
+  let minY = h;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (px[(y * w + x) * 4] < 128) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return { x: 0, y: 0, size: w };
+  return { x: minX, y: minY, size: Math.max(maxX - minX, maxY - minY) + 1 };
+}
+
+function renderFrameCanvases(frames) {
+  const raw = frames.map(renderRawFrame);
+  const { x, y, size } = findQrBounds(raw[0]);
+  return raw.map((src) => {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    c.getContext('2d').drawImage(src, x, y, size, size, 0, 0, size, size);
+    return c;
+  });
 }
 
 function drawSendFrame() {
@@ -120,7 +158,7 @@ async function startSending() {
     if (seq !== send.seq) return;
     if (typeof window.QRious !== 'function') throw new Error('The QR generator could not load. Check your connection and try again.');
     send.frames = encodeFrames(token);
-    send.canvases = send.frames.map(renderFrameCanvas);
+    send.canvases = renderFrameCanvases(send.frames);
     send.idx = 0;
     $('bk-send-loading').hidden = true;
     $('bk-send-large').hidden = send.frames.length <= LARGE_FRAME_COUNT;
