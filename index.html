@@ -386,6 +386,12 @@
           <input id="modal-restore-file" type="file" accept=".vwfd" class="hidden" tabindex="-1"
             aria-hidden="true">
 
+          <button id="bk-scan-btn" type="button"
+            class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined bk-scan-entry bk-sync-only">
+            <span class="material-symbols-outlined icon-20">qr_code_scanner</span>
+            Scan from Another Device
+          </button>
+
           <div id="bk-dropzone" class="bk-dropzone" role="button" tabindex="0"
             aria-label="Upload a saved progress file (.vwfd). Drag and drop or press Enter to browse."
             aria-describedby="bk-meta-row">
@@ -448,23 +454,122 @@
             <span class="material-symbols-outlined icon-20 m3-text-primary">account_circle</span>
             <span id="bk-save-summary" class="truncate">No saved progress yet</span>
           </div>
-          <button id="modal-export-json-btn" type="button" class="btn btn-primary rounded-full gap-2 w-full">
-            <span class="material-symbols-outlined icon-20">download</span>
-            Download Progress File (.vwfd)
+          <div class="bk-save-row">
+            <button id="modal-export-json-btn" type="button" class="btn btn-primary rounded-full gap-2 flex-1 min-w-0">
+              <span class="material-symbols-outlined icon-20">download</span>
+              <span class="truncate">Download Progress File (.vwfd)</span>
+            </button>
+            <button id="modal-copy-token-btn" type="button"
+              class="btn m3-btn-tonal btn-circle bk-btn-tonal-outlined bk-icon-btn"
+              title="Copy backup text" aria-label="Copy backup text">
+              <span class="material-symbols-outlined icon-20 bk-copy-icon">content_copy</span>
+              <span class="bk-copy-label bk-sr-only" aria-live="polite">Copy backup text</span>
+            </button>
+          </div>
+          <button id="bk-send-btn" type="button"
+            class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined bk-sync-only">
+            <span class="material-symbols-outlined icon-20">devices</span>
+            Send to Another Device
           </button>
-          <button id="modal-copy-token-btn" type="button"
-            class="btn m3-btn-tonal rounded-full gap-2 w-full bk-btn-tonal-outlined">
-            <span class="material-symbols-outlined icon-20 bk-copy-icon">content_copy</span>
-            <span class="bk-copy-label">Copy Backup Text</span>
-          </button>
-          <p class="bk-hint">Your progress is saved automatically in this browser. Keep a backup to continue on another
-            device.</p>
+          <p class="bk-hint">Your progress is saved automatically in this browser. Keep a backup, or send it to your
+            phone or another computer to continue there.</p>
         </div>
 
         <div class="bk-footer bk-footer-start">
           <button id="modal-reset-progress-btn" type="button" class="bk-danger-link">
             <span class="material-symbols-outlined icon-18">restart_alt</span>
             <span class="bk-reset-label">Reset Progress</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Device Sync: Send (animated QR on this screen) -->
+      <section id="bk-panel-send" class="bk-panel" aria-labelledby="bk-send-title" hidden>
+        <div class="bk-body">
+          <div class="bk-sync-head">
+            <button type="button" class="btn btn-sm btn-ghost btn-circle bk-sync-back" aria-label="Back to Save Backup">
+              <span class="material-symbols-outlined icon-20">arrow_back</span>
+            </button>
+            <h4 id="bk-send-title" class="bk-sync-title">Send to Another Device</h4>
+          </div>
+
+          <div class="bk-qr-stage">
+            <canvas id="bk-send-canvas" class="bk-qr-canvas" role="img"
+              aria-label="Animated QR code carrying your progress. Scan it from the other device."></canvas>
+            <div id="bk-send-loading" class="bk-qr-loading">Preparing code…</div>
+          </div>
+
+          <div class="bk-send-meta">
+            <span id="bk-send-frame" class="bk-send-frame">&nbsp;</span>
+            <div class="bk-speed" role="radiogroup" aria-label="Animation speed">
+              <button type="button" role="radio" class="bk-speed-opt" data-speed="normal" aria-checked="true">Normal</button>
+              <button type="button" role="radio" class="bk-speed-opt" data-speed="slow" aria-checked="false">Slower</button>
+            </div>
+          </div>
+
+          <ol class="bk-steps">
+            <li>On your phone or other computer, open <strong id="bk-send-url">this site</strong>.</li>
+            <li>Open <strong>Save or Load Progress</strong><span class="material-symbols-outlined bk-inline-chevron"
+                aria-hidden="true">chevron_right</span><span class="bk-sr-only"> then </span><strong>Scan from Another Device</strong>.</li>
+            <li>Point the camera at this code and hold steady until the frame fills.</li>
+          </ol>
+          <p class="bk-hint bk-send-done-hint">Done on your phone? You can close this.</p>
+          <p id="bk-send-large" class="bk-hint" hidden>This backup is large, so scanning takes a little longer. A
+            progress file is faster if you can move one across.</p>
+        </div>
+      </section>
+
+      <!-- Device Sync: Scan (camera on this device) -->
+      <section id="bk-panel-scan" class="bk-panel" aria-labelledby="bk-scan-title" hidden>
+        <div class="bk-body">
+          <div class="bk-sync-head">
+            <button type="button" class="btn btn-sm btn-ghost btn-circle bk-sync-back" aria-label="Back to Load Progress">
+              <span class="material-symbols-outlined icon-20">arrow_back</span>
+            </button>
+            <h4 id="bk-scan-title" class="bk-sync-title">Scan from Another Device</h4>
+          </div>
+
+          <div id="bk-scan-frame" class="bk-scan-frame" data-state="starting">
+            <video id="bk-scan-video" class="bk-scan-video" playsinline muted autoplay></video>
+            <div class="bk-scan-reticle" aria-hidden="true"></div>
+            <svg class="bk-scan-ring" viewBox="0 0 200 200" aria-hidden="true">
+              <path class="bk-ring-track" pathLength="100"
+                d="M100 16 H168 A16 16 0 0 1 184 32 V168 A16 16 0 0 1 168 184 H32 A16 16 0 0 1 16 168 V32 A16 16 0 0 1 32 16 Z" />
+              <path id="bk-ring-progress" class="bk-ring-progress" pathLength="100"
+                d="M100 16 H168 A16 16 0 0 1 184 32 V168 A16 16 0 0 1 168 184 H32 A16 16 0 0 1 16 168 V32 A16 16 0 0 1 32 16 Z" />
+              <circle class="bk-ring-start" cx="100" cy="16" r="3.5" />
+            </svg>
+            <div class="bk-scan-overlay bk-scan-overlay-denied">
+              <span class="material-symbols-outlined">videocam_off</span>
+              <p id="bk-scan-denied-text">Camera access is off.</p>
+              <button type="button" id="bk-scan-retry" class="btn btn-sm m3-btn-tonal rounded-full gap-1.5">
+                <span class="material-symbols-outlined icon-18">refresh</span>
+                Try Again
+              </button>
+            </div>
+            <div class="bk-scan-overlay bk-scan-overlay-done">
+              <span class="bk-done-tick"><span class="material-symbols-outlined">check</span></span>
+              <p>Got everything</p>
+            </div>
+          </div>
+
+          <p id="bk-scan-progress" class="bk-scan-progress" role="progressbar" aria-label="Progress received"
+            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">Waiting for the code…</p>
+
+          <p id="bk-scan-status" class="bk-scan-status" aria-live="polite"></p>
+          <div id="bk-scan-result" class="bk-save-summary bk-scan-result" hidden>
+            <span class="material-symbols-outlined icon-20 m3-text-primary filled">check_circle</span>
+            <span id="bk-scan-summary" class="truncate"></span>
+          </div>
+          <p class="bk-hint bk-scan-privacy">The camera only reads the code on your other screen. Nothing is recorded
+            or uploaded.</p>
+        </div>
+
+        <div class="bk-footer bk-footer-between">
+          <button type="button" id="bk-scan-fallback" class="bk-link bk-link-sm">Use a file instead</button>
+          <button id="bk-scan-load" type="button" class="btn btn-primary rounded-full px-6 gap-1.5" disabled>
+            <span class="material-symbols-outlined icon-18">upload</span>
+            Load Progress
           </button>
         </div>
       </section>

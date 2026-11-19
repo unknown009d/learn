@@ -12,6 +12,7 @@ import { appState, refreshStateFromDB, isRegistered, computeOverallProgress } fr
 import { renderSidebarAndProgress } from './sidebar.js';
 import { invalidateInMemoryCertCache, prefetchCertificateInBackground } from '../views/certificate.js';
 import { handleRoute } from '../router.js';
+import { bindDeviceSync, exitDeviceSync } from './device-sync.js';
 
 const BACKUP_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -72,6 +73,7 @@ function assertValidBackupState(state) {
 function setBackupTab(tab) {
   const modal = document.getElementById('backup-modal');
   if (!modal) return;
+  if (modal.classList.contains('is-syncing')) exitDeviceSync();
   modal.querySelectorAll('.bk-tab').forEach((btn) => {
     const selected = btn.dataset.bkTab === tab;
     btn.setAttribute('aria-selected', selected ? 'true' : 'false');
@@ -199,7 +201,8 @@ function resetCopyButton() {
   if (!btn) return;
   btn.classList.remove('is-copied');
   btn.querySelector('.bk-copy-icon').textContent = 'content_copy';
-  btn.querySelector('.bk-copy-label').textContent = 'Copy Backup Text';
+  btn.querySelector('.bk-copy-label').textContent = 'Copy backup text';
+  btn.title = 'Copy backup text';
 }
 
 function resetBackupModalState() {
@@ -230,9 +233,34 @@ function refreshBackupSaveSummary() {
   el.textContent = `${appState.profile.fullName} · ${prog.done}/${prog.totalSteps} Steps Completed`;
 }
 
+/** Replace this browser's progress with a parsed backup. Resolves true on success. */
+async function applyBackupState(state, where) {
+  const modal = document.getElementById('backup-modal');
+  try {
+    discardActiveEditor();
+    await importFullState(state);
+    await reloadTrail();
+    if (craftedBackups.has(state)) {
+      recordTrail('backup-crafted', { where, detail: 'Signature valid, integrity seal missing or wrong' });
+    }
+    invalidateInMemoryCertCache();
+    await refreshStateFromDB();
+    renderSidebarAndProgress();
+    modal.close();
+    showToast(`Welcome back, ${state.profile.fullName}! Your progress is loaded.`, 'success');
+    handleRoute();
+    prefetchCertificateInBackground();
+    return true;
+  } catch (err) {
+    showToast('Could not load saved progress: ' + err.message, 'error');
+    return false;
+  }
+}
+
 export function openBackupModal(tab) {
   const modal = document.getElementById('backup-modal');
   if (!modal) return;
+  exitDeviceSync();
   resetBackupModalState();
   refreshBackupSaveSummary();
   setBackupTab(tab || (isRegistered() ? 'save' : 'load'));
@@ -323,24 +351,18 @@ export function bindBackupModal() {
     const state = backupUi.activeSource === 'file' ? backupUi.fileState : backupUi.textState;
     if (!state) return;
     btn.disabled = true;
-    try {
-      discardActiveEditor();
-      await importFullState(state);
-      await reloadTrail();
-      if (craftedBackups.has(state)) {
-        recordTrail('backup-crafted', { where: 'Backup import', detail: 'Signature valid, integrity seal missing or wrong' });
-      }
-      invalidateInMemoryCertCache();
-      await refreshStateFromDB();
-      renderSidebarAndProgress();
-      modal.close();
-      showToast(`Welcome back, ${state.profile.fullName}! Your progress is loaded.`, 'success');
-      handleRoute();
-      prefetchCertificateInBackground();
-    } catch (err) {
-      showToast('Could not load saved progress: ' + err.message, 'error');
-      updateBackupImportButton();
-    }
+    if (!(await applyBackupState(state, 'Backup import'))) updateBackupImportButton();
+  });
+
+  bindDeviceSync({
+    modal,
+    setTab: setBackupTab,
+    canSend: isRegistered,
+    buildToken: async () => encodeBackupToken(await exportFullState()),
+    parseBackup,
+    summarize: summarizeBackupState,
+    applyState: (state) => applyBackupState(state, 'Device transfer'),
+    notify: showToast
   });
 
   // Save Backup: download
@@ -374,7 +396,8 @@ export function bindBackupModal() {
       clearTimeout(backupUi.copyTimer);
       btn.classList.add('is-copied');
       btn.querySelector('.bk-copy-icon').textContent = 'check';
-      btn.querySelector('.bk-copy-label').textContent = 'Copied!';
+      btn.querySelector('.bk-copy-label').textContent = 'Copied';
+      btn.title = 'Copied';
       backupUi.copyTimer = setTimeout(resetCopyButton, 2000);
     } catch (err) {
       showToast('Could not copy backup text: ' + err.message, 'error');
