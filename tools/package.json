@@ -1,0 +1,21 @@
+{
+  "name": "druba-learn-audio-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local Kokoro-82M Audio Gist generator for Vanilla Web Foundations",
+  "scripts": {
+    "generate:m1": "node generate-audio.mjs --module=1",
+    "generate:all": "node generate-audio.mjs --all",
+    "build:css": "tailwindcss -c tailwind.config.cjs -i tailwind.input.css -o ../css/tailwind.css --minify",
+    "sync:vendors": "node sync-vendors.mjs",
+    "build:assets": "npm run sync:vendors && npm run build:css"
+  },
+  "dependencies": {
+    "kokoro-js": "^1.2.1"
+  },
+  "devDependencies": {
+    "daisyui": "^4.12.14",
+    "tailwindcss": "^3.4.17"
+  }
+}

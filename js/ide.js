@@ -364,9 +364,17 @@ function getLabVerificationScript(labId, rawHtml, rawCss, rawJs) {
 }
 
 export function composeSrcDoc(htmlCode, cssCode, jsCode, verifierScript = '', runToken = '') {
-  const cleanedHtml = htmlCode || '';
+  let cleanedHtml = htmlCode || '';
   const cleanedCss = cssCode || '';
   const cleanedJs = jsCode || '';
+
+  // Resolve local Bootstrap CSS inside sandboxed about:srcdoc iframes (and rewrite legacy CDN URL)
+  try {
+    const localBootstrapUrl = new URL('./vendor/bootstrap/bootstrap.min.css', window.location.href).href;
+    cleanedHtml = cleanedHtml
+      .replace(/(['"])\.\/vendor\/bootstrap\/bootstrap\.min\.css\1/g, `$1${localBootstrapUrl}$1`)
+      .replace(/(['"])https:\/\/cdn\.jsdelivr\.net\/npm\/bootstrap@5\.3\.3\/dist\/css\/bootstrap\.min\.css\1/g, `$1${localBootstrapUrl}$1`);
+  } catch (_) {}
 
   const bridgeScript = `
     <script>

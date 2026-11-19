@@ -1,0 +1,125 @@
+{
+  "voice": "af_heart",
+  "lessons": {
+    "m1-internet-vs-www": {
+      "file": "./audio/m1-internet-vs-www.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m1-url-dns-ip": {
+      "file": "./audio/m1-url-dns-ip.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m1-how-web-works": {
+      "file": "./audio/m1-how-web-works.mp3",
+      "duration": 35,
+      "voice": "af_heart"
+    },
+    "m1-architecture": {
+      "file": "./audio/m1-architecture.mp3",
+      "duration": 31,
+      "voice": "af_heart"
+    },
+    "m1-first-page": {
+      "file": "./audio/m1-first-page.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m2-text-headings": {
+      "file": "./audio/m2-text-headings.mp3",
+      "duration": 35,
+      "voice": "af_heart"
+    },
+    "m2-links-images": {
+      "file": "./audio/m2-links-images.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m2-lists": {
+      "file": "./audio/m2-lists.mp3",
+      "duration": 31,
+      "voice": "af_heart"
+    },
+    "m2-tables": {
+      "file": "./audio/m2-tables.mp3",
+      "duration": 33,
+      "voice": "af_heart"
+    },
+    "m2-forms": {
+      "file": "./audio/m2-forms.mp3",
+      "duration": 33,
+      "voice": "af_heart"
+    },
+    "m2-semantics-iframes": {
+      "file": "./audio/m2-semantics-iframes.mp3",
+      "duration": 33,
+      "voice": "af_heart"
+    },
+    "m3-vars-operators": {
+      "file": "./audio/m3-vars-operators.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m3-popup-boxes": {
+      "file": "./audio/m3-popup-boxes.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m3-control-flow": {
+      "file": "./audio/m3-control-flow.mp3",
+      "duration": 30,
+      "voice": "af_heart"
+    },
+    "m3-try-catch": {
+      "file": "./audio/m3-try-catch.mp3",
+      "duration": 33,
+      "voice": "af_heart"
+    },
+    "m3-builtin-es6": {
+      "file": "./audio/m3-builtin-es6.mp3",
+      "duration": 33,
+      "voice": "af_heart"
+    },
+    "m4-css-types-selectors": {
+      "file": "./audio/m4-css-types-selectors.mp3",
+      "duration": 35,
+      "voice": "af_heart"
+    },
+    "m4-box-model-div-span": {
+      "file": "./audio/m4-box-model-div-span.mp3",
+      "duration": 32,
+      "voice": "af_heart"
+    },
+    "m4-layout-effects": {
+      "file": "./audio/m4-layout-effects.mp3",
+      "duration": 34,
+      "voice": "af_heart"
+    },
+    "m4-dom-dhtml": {
+      "file": "./audio/m4-dom-dhtml.mp3",
+      "duration": 37,
+      "voice": "af_heart"
+    },
+    "m5-security-overview": {
+      "file": "./audio/m5-security-overview.mp3",
+      "duration": 38,
+      "voice": "af_heart"
+    },
+    "m5-firewalls": {
+      "file": "./audio/m5-firewalls.mp3",
+      "duration": 37,
+      "voice": "af_heart"
+    },
+    "m5-management-privacy": {
+      "file": "./audio/m5-management-privacy.mp3",
+      "duration": 36,
+      "voice": "af_heart"
+    },
+    "m5-copyright": {
+      "file": "./audio/m5-copyright.mp3",
+      "duration": 38,
+      "voice": "af_heart"
+    }
+  }
+}

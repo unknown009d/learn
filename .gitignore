@@ -2,3 +2,9 @@
 full-course-backup.json
 *_druba-web*.json
 
+# Local audio generator tooling
+tools/node_modules/
+tools/.tmp/
+tools/.cache.json
+
+
