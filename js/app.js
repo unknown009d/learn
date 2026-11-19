@@ -945,20 +945,20 @@ function renderSidebarAndProgress() {
       profileCard.innerHTML = `
         <div class="rail-expanded-only p-3">
           <div class="flex items-center gap-2.5 min-w-0">
-            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+            <div class="w-8 h-8 rounded-full m3-avatar-primary flex items-center justify-center font-bold text-xs shrink-0">
               ${initial}
             </div>
             <div class="min-w-0 flex-1">
-              <div class="font-bold text-sm text-neutral-900 dark:text-neutral-100 truncate">${escapeHtml(appState.profile.fullName)}</div>
-              <div class="text-xs font-mono text-neutral-500 dark:text-neutral-400 truncate">${escapeHtml(appState.profile.rollNo)}</div>
+              <div class="font-bold text-sm truncate">${escapeHtml(appState.profile.fullName)}</div>
+              <div class="text-xs font-mono m3-text-muted truncate">${escapeHtml(appState.profile.rollNo)}</div>
             </div>
-            <a href="#/" class="btn btn-xs btn-ghost btn-circle shrink-0 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200" title="Course Overview">
-              <span class="material-symbols-outlined text-[18px]">unfold_more</span>
+            <a href="#/" class="btn btn-xs btn-ghost btn-circle shrink-0 m3-text-muted" title="Course Overview">
+              <span class="material-symbols-outlined icon-18">unfold_more</span>
             </a>
           </div>
         </div>
         <div class="rail-collapsed-only p-1.5 justify-center">
-          <a href="#/" class="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-xs" title="${escapeHtml(appState.profile.fullName)} (${escapeHtml(appState.profile.rollNo)})">
+          <a href="#/" class="w-9 h-9 rounded-full m3-avatar-primary flex items-center justify-center font-bold text-sm" title="${escapeHtml(appState.profile.fullName)} (${escapeHtml(appState.profile.rollNo)})">
             ${initial}
           </a>
         </div>
@@ -966,16 +966,16 @@ function renderSidebarAndProgress() {
     } else {
       profileCard.innerHTML = `
         <div class="rail-expanded-only p-3">
-          <div class="flex items-center gap-2 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-            <span class="material-symbols-outlined text-lg text-emerald-600">person_add</span>
+          <div class="flex items-center gap-2 text-sm font-semibold">
+            <span class="material-symbols-outlined icon-20 m3-text-primary">person_add</span>
             <span>Welcome Guest</span>
           </div>
-          <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">Enter your name and ID to have your account locally.</p>
+          <p class="text-xs m3-text-muted mt-1">Enter your name and ID to have your account locally.</p>
         </div>
         <div class="rail-collapsed-only p-1.5 justify-center">
           <button class="btn btn-sm btn-ghost btn-circle" title="Enter your details to create an account"
                   onclick="document.querySelector('#reg-fullname').focus()">
-            <span class="material-symbols-outlined text-lg text-emerald-600">person_add</span>
+            <span class="material-symbols-outlined icon-20 m3-text-primary">person_add</span>
           </button>
         </div>
       `;
@@ -1006,15 +1006,15 @@ function renderSidebarAndProgress() {
 
     html += `
       <!-- Expanded Drawer Module Accordion -->
-      <details class="rail-expanded-only group rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-white/70 dark:bg-neutral-900/60 shadow-xs transition-all ${isAnyInModActive ? 'open' : ''}" ${isAnyInModActive ? 'open' : ''}>
-        <summary class="flex items-center justify-between gap-2 p-2.5 cursor-pointer select-none rounded-2xl hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors list-none [&::-webkit-details-marker]:hidden">
+      <details class="rail-expanded-only m3-accordion m3-sidebar-mod rounded-2xl border m3-border-subtle ${!gate.unlocked ? 'opacity-75' : ''}" ${isAnyInModActive ? 'open' : ''}>
+        <summary class="m3-accordion-trigger p-2.5 text-xs font-semibold">
           <div class="flex items-center gap-2 min-w-0 flex-1">
-            <span class="w-5 h-5 rounded-full ${modComplete ? 'bg-emerald-600 text-white' : gate.unlocked ? 'bg-emerald-600 text-white' : 'bg-neutral-400 text-white'} font-bold text-[10px] font-mono flex items-center justify-center shrink-0">
+            <span class="w-5 h-5 rounded-full m3-sidebar-code ${!gate.unlocked ? 'is-locked' : ''} font-bold text-[10px] font-mono flex items-center justify-center shrink-0">
               ${mod.code}
             </span>
-            <span class="font-semibold text-xs text-neutral-800 dark:text-neutral-200 truncate">${escapeHtml(mod.title)}</span>
+            <span class="truncate">${escapeHtml(mod.title)}</span>
           </div>
-          <span class="material-symbols-outlined text-neutral-400 text-base shrink-0 group-open:rotate-180 transition-transform">expand_more</span>
+          <span class="material-symbols-outlined icon-18 m3-accordion-chevron shrink-0">expand_more</span>
         </summary>
 
         <div class="px-2 pb-2.5 pt-1 flex flex-col gap-1">
@@ -1023,18 +1023,8 @@ function renderSidebarAndProgress() {
             const secDone = isLessonCompleted(mod.id, sec.id);
             const secActive = isLessonRoute && activeLessonNum === stepNum;
             return `
-              <a href="#/module/${mod.id}/lesson/${stepNum}" class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs min-w-0 transition-colors ${
-                secActive
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-semibold'
-                  : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 font-medium'
-              }" title="${escapeHtml(sec.title)}">
-                <span class="material-symbols-outlined shrink-0 text-base ${
-                  secActive
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : secDone
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-neutral-400'
-                }">
+              <a href="#/module/${mod.id}/lesson/${stepNum}" class="m3-nav-item ${secActive ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex items-center gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium min-w-0" title="${escapeHtml(sec.title)}">
+                <span class="material-symbols-outlined shrink-0 text-base ${secActive ? '' : secDone ? 'm3-text-primary' : 'm3-text-muted'}">
                   ${secActive ? 'radio_button_checked' : secDone ? 'check_circle' : 'radio_button_unchecked'}
                 </span>
                 <span class="truncate">${stepNum}. ${escapeHtml(sec.title)}</span>
@@ -1042,16 +1032,12 @@ function renderSidebarAndProgress() {
             `;
           }).join('')}
 
-          <a href="${quizHash}" class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-            currentHash === quizHash
-              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-semibold'
-              : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 font-medium'
-          }">
+          <a href="${quizHash}" class="m3-nav-item ${currentHash === quizHash ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium">
             <span class="flex items-center gap-2 min-w-0">
               <span class="material-symbols-outlined text-base shrink-0">quiz</span>
               <span class="truncate">Graded Quiz</span>
             </span>
-            ${quizPassed ? '<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-base shrink-0">check_circle</span>' : ''}
+            ${quizPassed ? '<span class="material-symbols-outlined m3-text-primary text-base shrink-0">check_circle</span>' : ''}
           </a>
 
           ${mod.labIds.map((lid) => {
@@ -1060,16 +1046,12 @@ function renderSidebarAndProgress() {
             const labDone = isLabCompleted(lid);
             const labActive = currentHash === `#/lab/${lid}`;
             return `
-              <a href="#/lab/${lid}" class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
-                labActive
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 font-semibold'
-                  : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 font-medium'
-              } ${!labGate.unlocked ? 'opacity-50 pointer-events-none' : ''}" title="${escapeHtml(lab.code)}: ${escapeHtml(lab.title)}">
+              <a href="#/lab/${lid}" class="m3-nav-item ${labActive ? 'is-active' : ''} ${!labGate.unlocked ? 'is-locked' : ''} flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl text-xs font-medium" title="${escapeHtml(lab.code)}: ${escapeHtml(lab.title)}">
                 <span class="flex items-center gap-2 min-w-0">
-                  <span class="material-symbols-outlined text-base shrink-0">${labDone ? 'check_circle' : labGate.unlocked ? 'code' : 'lock'}</span>
+                  <span class="material-symbols-outlined text-base shrink-0 ${labDone && !labActive ? 'm3-text-primary' : ''}">${labDone ? 'check_circle' : labGate.unlocked ? 'code' : 'lock'}</span>
                   <span class="truncate">${escapeHtml(lab.code)}: ${escapeHtml(lab.title)}</span>
                 </span>
-                ${labDone ? '<span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400 text-base shrink-0">check_circle</span>' : ''}
+                ${labDone ? '<span class="material-symbols-outlined m3-text-primary text-base shrink-0">check_circle</span>' : ''}
               </a>
             `;
           }).join('')}
@@ -1077,10 +1059,8 @@ function renderSidebarAndProgress() {
       </details>
 
       <!-- Collapsed M3 Rail Item -->
-      <a href="${modHash}" class="rail-collapsed-only flex flex-col items-center justify-center py-2 px-1 rounded-2xl border border-neutral-200 dark:border-neutral-800 gap-0.5 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors ${
-        isAnyInModActive ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300' : ''
-      }" title="${mod.code}: ${escapeHtml(mod.title)}">
-        <span class="material-symbols-outlined text-lg ${modComplete ? 'text-emerald-600 dark:text-emerald-400' : ''}">
+      <a href="${modHash}" class="rail-collapsed-only m3-nav-item ${isAnyInModActive ? 'is-active' : ''} ${!gate.unlocked ? 'is-locked' : ''} flex-col items-center justify-center py-2 px-1 rounded-2xl border m3-border-subtle gap-0.5" title="${mod.code}: ${escapeHtml(mod.title)}">
+        <span class="material-symbols-outlined icon-20 ${modComplete && !isAnyInModActive ? 'filled m3-text-primary' : ''}">
           ${modComplete ? 'check_circle' : gate.unlocked ? mod.icon : 'lock'}
         </span>
         <span class="text-[10px] font-mono font-bold leading-none">${mod.code}</span>
@@ -1090,25 +1070,17 @@ function renderSidebarAndProgress() {
 
   const certUnlocked = isCertificateUnlocked();
   html += `
-    <div class="mt-2 flex flex-col gap-1 pt-2 border-t border-neutral-200 dark:border-neutral-800">
-      <a href="#/certificate" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-        currentHash === '#/certificate'
-          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 shadow-xs'
-          : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60'
-      } ${!certUnlocked ? 'opacity-60' : ''}" title="Certificate">
-        <span class="material-symbols-outlined text-lg shrink-0">${certUnlocked ? 'workspace_premium' : 'lock'}</span>
+    <div class="mt-2 flex flex-col gap-1 pt-2 border-t m3-border-subtle">
+      <a href="#/certificate" class="m3-nav-item rail-link ${currentHash === '#/certificate' ? 'is-active' : ''} ${!certUnlocked ? 'is-locked' : ''} flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold" title="Certificate">
+        <span class="material-symbols-outlined icon-20 shrink-0">${certUnlocked ? 'workspace_premium' : 'lock'}</span>
         <span class="rail-expanded-only truncate">Certificate</span>
       </a>
-      <a href="#/manual" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors ${
-        currentHash === '#/manual' ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold' : ''
-      }" title="Printable Lab Manual">
-        <span class="material-symbols-outlined text-lg shrink-0">menu_book</span>
+      <a href="#/manual" class="m3-nav-item rail-link ${currentHash === '#/manual' ? 'is-active' : ''} flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium" title="Printable Lab Manual">
+        <span class="material-symbols-outlined icon-20 shrink-0">menu_book</span>
         <span class="rail-expanded-only truncate">Lab Manual</span>
       </a>
-      <a href="#/verify" class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 transition-colors ${
-        currentHash === '#/verify' ? 'bg-neutral-100 dark:bg-neutral-800 font-semibold' : ''
-      }" title="Check Certificate">
-        <span class="material-symbols-outlined text-lg shrink-0">verified_user</span>
+      <a href="#/verify" class="m3-nav-item rail-link ${currentHash === '#/verify' ? 'is-active' : ''} flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium" title="Check Certificate">
+        <span class="material-symbols-outlined icon-20 shrink-0">verified_user</span>
         <span class="rail-expanded-only truncate">Check Certificate</span>
       </a>
     </div>
@@ -1329,24 +1301,24 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
   const modSymbol = /mac|iphone|ipad|ipod/i.test(navigator.platform || '') ? '⌘' : 'Ctrl';
 
   return `
-    <div id="pane-instructions" class="ide-pane flex flex-col h-full bg-white dark:bg-neutral-950">
+    <div id="pane-instructions" class="ide-pane">
       <div class="flex-1 overflow-y-auto p-5 sm:p-7 flex flex-col gap-6">
         <div>
-          <div id="lesson-step-label" class="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+          <div id="lesson-step-label" class="text-[11px] font-bold uppercase tracking-wider m3-text-primary">
             MODULE ${mod.id} &middot; LESSON ${currentStep} OF ${totalLessons}
           </div>
-          <h1 class="text-2xl sm:text-[26px] font-bold tracking-tight text-neutral-900 dark:text-neutral-100 mt-1">${escapeHtml(sec.title)}</h1>
-          <p class="text-sm sm:text-[15px] leading-relaxed text-neutral-600 dark:text-neutral-300 mt-2.5 m-0">${escapeHtml(sec.lead)}</p>
+          <h1 class="text-2xl sm:text-[26px] font-bold tracking-tight mt-1">${escapeHtml(sec.title)}</h1>
+          <p class="text-sm sm:text-[15px] leading-relaxed m3-text-muted mt-2.5 m-0">${escapeHtml(sec.lead)}</p>
         </div>
 
         ${sec.points ? `
-          <ul class="space-y-3.5 text-sm sm:text-[15px] text-neutral-700 dark:text-neutral-300 mt-1 pl-0 list-none m-0">
+          <ul class="space-y-3.5 text-sm sm:text-[15px] mt-1 pl-0 list-none m-0">
             ${sec.points.map((pt) => `
               <li class="flex items-start gap-3">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 mt-2.5 shrink-0"></span>
+                <span class="w-1.5 h-1.5 rounded-full m3-dot-primary mt-2.5 shrink-0"></span>
                 <div class="leading-relaxed">
-                  <strong class="font-bold text-neutral-900 dark:text-neutral-100">${escapeHtml(pt.heading)}:</strong>
-                  <span class="text-neutral-600 dark:text-neutral-300 ml-1">${escapeHtml(pt.text)}</span>
+                  <strong class="font-bold">${escapeHtml(pt.heading)}:</strong>
+                  <span class="m3-text-muted ml-1">${escapeHtml(pt.text)}</span>
                 </div>
               </li>
             `).join('')}
@@ -1354,13 +1326,13 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
         ` : ''}
 
         ${sec.widget?.task ? `
-          <div class="pt-4 border-t border-neutral-200 dark:border-neutral-800">
-            <div class="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Try It in the Editor</div>
-            <p class="text-xs text-neutral-500 dark:text-neutral-400 m-0 leading-relaxed">${escapeHtml(sec.widget.task)}</p>
+          <div class="pt-4 border-t m3-border-subtle">
+            <div class="text-xs font-semibold uppercase tracking-wider m3-text-primary mb-1">Try It in the Editor</div>
+            <p class="text-xs m3-text-muted m-0 leading-relaxed">${escapeHtml(sec.widget.task)}</p>
             ${checks.length ? `
               <div class="flex flex-wrap gap-1.5 mt-3" data-me-checks>
                 ${checks.map((chk, idx) => `
-                  <span class="badge badge-sm rounded-full py-2 px-2.5 bg-neutral-100 dark:bg-neutral-800/80 text-neutral-700 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700 gap-1.5 font-medium text-xs" data-me-check="${idx}">
+                  <span class="badge badge-sm rounded-full py-2 px-2.5 m3-surface-container border m3-border-subtle gap-1.5 font-medium text-xs" data-me-check="${idx}">
                     <span class="material-symbols-outlined text-sm">radio_button_unchecked</span>
                     <span>${escapeHtml(chk.label)}</span>
                   </span>
@@ -1371,31 +1343,31 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
         ` : ''}
 
         ${(sec.analogy || sec.takeaway) ? `
-          <details class="m3-accordion group rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40 overflow-hidden shadow-xs">
-            <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold flex items-center justify-between cursor-pointer hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors">
+          <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle">
+            <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
               <span>Extra Tips &amp; Examples</span>
-              <span class="material-symbols-outlined text-neutral-400 text-lg m3-accordion-chevron" aria-hidden="true">expand_more</span>
+              <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
             </summary>
-            <div class="m3-accordion-body px-4 py-3.5 text-xs space-y-2 text-neutral-600 dark:text-neutral-300 border-t border-neutral-200/60 dark:border-neutral-800">
-              ${sec.analogy ? `<div><strong class="text-neutral-900 dark:text-neutral-100">${escapeHtml(sec.analogy.title)}:</strong> ${escapeHtml(sec.analogy.text)}</div>` : ''}
-              ${sec.takeaway ? `<div><strong class="text-neutral-900 dark:text-neutral-100">Takeaway:</strong> ${escapeHtml(sec.takeaway.text)}</div>` : ''}
+            <div class="m3-accordion-body px-4 py-3.5 text-xs space-y-2 m3-text-muted">
+              ${sec.analogy ? `<div><strong class="text-[var(--m3-text)]">${escapeHtml(sec.analogy.title)}:</strong> ${escapeHtml(sec.analogy.text)}</div>` : ''}
+              ${sec.takeaway ? `<div><strong class="text-[var(--m3-text)]">Takeaway:</strong> ${escapeHtml(sec.takeaway.text)}</div>` : ''}
             </div>
           </details>
         ` : ''}
 
         ${sec.microCheck ? `
-          <details class="m3-accordion group rounded-2xl border border-neutral-200/80 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/40 overflow-hidden shadow-xs" id="lesson-micro-check">
-            <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold flex items-center justify-between cursor-pointer hover:bg-neutral-100/60 dark:hover:bg-neutral-800/40 transition-colors">
+          <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle" id="lesson-micro-check">
+            <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
               <span>Quick Check (Optional)</span>
-              <span class="material-symbols-outlined text-neutral-400 text-lg m3-accordion-chevron" aria-hidden="true">expand_more</span>
+              <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
             </summary>
-            <div class="m3-accordion-body px-4 py-3.5 border-t border-neutral-200/60 dark:border-neutral-800">
-              <p class="text-xs sm:text-sm font-medium mb-3 mt-0 text-neutral-800 dark:text-neutral-200">${escapeHtml(sec.microCheck.question)}</p>
+            <div class="m3-accordion-body px-4 py-3.5">
+              <p class="text-xs sm:text-sm font-medium mb-3 mt-0">${escapeHtml(sec.microCheck.question)}</p>
               <div class="flex flex-col gap-2">
                 ${sec.microCheck.options.map((opt, oIdx) => `
-                  <button type="button" class="btn btn-xs h-auto min-h-[34px] py-1.5 px-3.5 justify-start text-left font-normal bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 border border-neutral-200 dark:border-neutral-700 rounded-xl transition-all" data-mc-opt="${oIdx}">
-                    <span class="font-mono font-bold mr-2 text-emerald-600 dark:text-emerald-400">${['A', 'B', 'C'][oIdx]}.</span>
-                    <span class="text-neutral-800 dark:text-neutral-200">${escapeHtml(opt)}</span>
+                  <button type="button" class="btn btn-xs h-auto min-h-[34px] py-1.5 px-3.5 justify-start text-left font-normal btn-ghost border m3-border-subtle rounded-xl" data-mc-opt="${oIdx}">
+                    <span class="font-mono font-bold mr-2 opacity-75">${['A', 'B', 'C'][oIdx]}.</span>
+                    <span>${escapeHtml(opt)}</span>
                   </button>
                 `).join('')}
               </div>
@@ -1406,29 +1378,31 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
       </div>
 
       <!-- Anchored Bottom Lesson Footer inside Pane 1 -->
-      <footer class="border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/90 dark:bg-neutral-900/90 px-4 py-3 flex items-center justify-between gap-3 shrink-0">
-        <div class="flex items-center gap-2">
-          ${currentStep > 1 ? `
-            <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-sm btn-ghost border border-neutral-200 dark:border-neutral-700 rounded-full px-3.5 gap-1.5 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200/60 dark:hover:bg-neutral-800" title="Previous Lesson (Alt+Left)">
-              <span class="material-symbols-outlined text-base">arrow_back</span>
-              <span class="hidden sm:inline">Previous</span>
+      <footer class="m3-mobile-sticky-bar m3-border-subtle lg:border-t lg:m3-surface-container-low lg:px-4 lg:py-3 lg:flex lg:items-center lg:justify-between lg:gap-3 shrink-0">
+        <div class="m3-mobile-split-actions lg:contents">
+          <div class="m3-mobile-prev-wrap lg:flex lg:items-center lg:gap-2">
+            ${currentStep > 1 ? `
+              <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-sm m3-btn-tonal lg:btn-ghost lg:border lg:m3-border-subtle rounded-full px-3.5 gap-1.5" title="Previous Lesson (Alt+Left)">
+                <span class="material-symbols-outlined icon-18">arrow_back</span>
+                <span>Previous</span>
+              </a>
+            ` : `
+              <button type="button" id="lesson-prev-btn" disabled class="btn btn-sm m3-btn-tonal lg:btn-ghost lg:border lg:m3-border-subtle rounded-full px-3.5 gap-1.5 opacity-40 cursor-not-allowed" aria-disabled="true">
+                <span class="material-symbols-outlined icon-18">arrow_back</span>
+                <span>Previous</span>
+              </button>
+            `}
+            <a href="#/quiz/${mod.id}" class="hidden lg:inline-flex btn btn-sm btn-ghost rounded-full px-3 text-xs" title="Jump to Module ${mod.id} Quiz">
+              Take Quiz
             </a>
-          ` : `
-            <button type="button" id="lesson-prev-btn" disabled class="btn btn-sm btn-ghost border border-neutral-200 dark:border-neutral-800 rounded-full px-3.5 gap-1.5 opacity-40 cursor-not-allowed" aria-disabled="true">
-              <span class="material-symbols-outlined text-base">arrow_back</span>
-              <span class="hidden sm:inline">Previous</span>
-            </button>
-          `}
-          <a href="#/quiz/${mod.id}" class="hidden lg:inline-flex btn btn-sm btn-ghost rounded-full px-3 text-xs text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100" title="Jump to Module ${mod.id} Quiz">
-            Take Quiz
-          </a>
-        </div>
+          </div>
 
-        <button id="lesson-complete-next-btn" type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-2 font-medium shadow-xs" title="${isLastLesson ? 'Take Quiz' : 'Next Lesson'} (Ctrl+Enter)">
-          <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
-          <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${modSymbol}+Enter</kbd>
-          <span class="material-symbols-outlined text-base">arrow_forward</span>
-        </button>
+          <button id="lesson-complete-next-btn" type="button" class="btn btn-sm btn-primary rounded-full px-4 gap-2 font-medium" title="${isLastLesson ? 'Take Quiz' : 'Next Lesson'} (Ctrl+Enter)">
+            <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
+            <kbd class="m3-kbd-on-primary hidden sm:inline-flex">${modSymbol}+Enter</kbd>
+            <span class="material-symbols-outlined icon-18">arrow_forward</span>
+          </button>
+        </div>
       </footer>
     </div>
   `;
@@ -3503,7 +3477,7 @@ async function renderVerifyView(queryParams = null) {
       <!-- Check a Certificate Card (Auto-Collapses When Results Are Shown) -->
       <div id="verify-input-card" class="m3-card rounded-3xl border m3-border-subtle overflow-hidden">
         <!-- Collapsed Single-Row Header -->
-        <button id="verify-expand-bar" type="button" class="hidden w-full px-5 py-4 flex items-center justify-between gap-3 text-left hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" aria-expanded="false" aria-controls="verify-input-body">
+        <button id="verify-expand-bar" type="button" class="m3-menu-item hidden w-full px-5 py-4 flex items-center justify-between gap-3 text-left" aria-expanded="false" aria-controls="verify-input-body">
           <span class="flex items-center gap-2.5 font-semibold text-sm sm:text-base">
             <span class="material-symbols-outlined icon-20 m3-text-primary">verified_user</span>
             <span>Check Another Certificate</span>

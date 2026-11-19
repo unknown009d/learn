@@ -105,31 +105,31 @@ export function renderLessonWidgetHtml(widgetSpec) {
       <div class="flex flex-col gap-4 h-full" data-widget="packet-toggle">
         <!-- Widget Header -->
         <div class="flex items-center justify-between gap-2 flex-wrap">
-          <div class="text-xs font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-lg text-emerald-600">hub</span>
+          <div class="text-xs font-bold uppercase tracking-wider m3-text-primary flex items-center gap-1.5">
+            <span class="material-symbols-outlined icon-18">hub</span>
             <span>Interactive Network Topology &amp; Packet Inspector</span>
           </div>
-          <span class="badge badge-sm py-2 px-2.5 bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 font-mono text-[11px]" data-pt-proto>TCP/IP · Port 5222</span>
+          <span class="badge m3-tonal-badge font-mono text-[11px]" data-pt-proto>TCP/IP · Port 5222</span>
         </div>
 
         <!-- Mode Buttons + Animate Action -->
         <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="btn btn-xs sm:btn-sm rounded-full gap-2 transition-all font-medium btn-primary" data-pt-mode="internet">
-            <span class="material-symbols-outlined text-base">chat</span>
+          <button type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full gap-1.5 font-medium" data-pt-mode="internet">
+            <span class="material-symbols-outlined icon-18">chat</span>
             <span>Send Message (Internet Only)</span>
           </button>
-          <button type="button" class="btn btn-xs sm:btn-sm rounded-full gap-2 transition-all font-medium btn-ghost border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-700 dark:text-neutral-300" data-pt-mode="www">
-            <span class="material-symbols-outlined text-base">language</span>
+          <button type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1.5 font-medium" data-pt-mode="www">
+            <span class="material-symbols-outlined icon-18">language</span>
             <span>Open Webpage (World Wide Web)</span>
           </button>
-          <button type="button" class="btn btn-xs sm:btn-sm rounded-full gap-1.5 ml-auto font-medium border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-800 dark:text-neutral-200 shadow-xs" data-pt-send>
-            <span class="material-symbols-outlined text-base text-emerald-600 dark:text-emerald-400">play_circle</span>
+          <button type="button" class="btn btn-xs sm:btn-sm btn-outline rounded-full gap-1.5 ml-auto font-medium" data-pt-send>
+            <span class="material-symbols-outlined icon-18">play_circle</span>
             <span>Animate Packet</span>
           </button>
         </div>
 
         <!-- SVG Network Topology Card -->
-        <div class="bg-white dark:bg-neutral-900 rounded-2xl p-4 sm:p-5 border border-neutral-200 dark:border-neutral-800 shadow-xs flex flex-col gap-3">
+        <div class="m3-surface-container-low rounded-2xl p-4 sm:p-5 border m3-border-subtle flex flex-col gap-3">
           <svg viewBox="0 0 640 138" class="w-full h-auto block select-none" role="img" aria-label="Network Topology Diagram">
             <defs>
               <filter id="pt-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -141,68 +141,68 @@ export function renderLessonWidgetHtml(widgetSpec) {
               </filter>
             </defs>
 
-            <!-- Base connection track + green dashed flow -->
-            <line x1="70" y1="54" x2="570" y2="54" stroke="#e2e8f0" stroke-width="2.5" stroke-linecap="round" class="dark:stroke-neutral-800" />
-            <line x1="70" y1="54" x2="570" y2="54" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6,6" opacity="0.85" />
+            <!-- Base connection track + animated dashed flow -->
+            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-outline-variant)" stroke-width="2.5" stroke-linecap="round" />
+            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-primary)" stroke-width="2.5" stroke-linecap="round" class="m3-svg-flow" opacity="0.78" />
 
             <!-- Nodes -->
             ${nodes.map((n, idx) => `
               <g data-pt-node="${idx}" class="cursor-pointer">
-                <circle cx="${n.x}" cy="54" r="24" fill="#ffffff" class="dark:fill-neutral-900" stroke="${idx === 0 ? '#10b981' : '#cbd5e1'}" stroke-width="2.5" data-pt-ring="${idx}" />
+                <circle cx="${n.x}" cy="54" r="24" fill="var(--m3-surface-container-lowest)" stroke="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-outline-variant)'}" stroke-width="2.5" data-pt-ring="${idx}" />
                 <foreignObject x="${n.x - 12}" y="42" width="24" height="24">
-                  <div xmlns="http://www.w3.org/1999/xhtml" class="w-6 h-6 flex items-center justify-center text-neutral-800 dark:text-neutral-100">
-                    <span class="material-symbols-outlined text-lg" ${idx === 3 ? 'data-pt-dest-icon' : ''}>${n.icon}</span>
+                  <div xmlns="http://www.w3.org/1999/xhtml" class="w-6 h-6 flex items-center justify-center" style="color:var(--m3-text);">
+                    <span class="material-symbols-outlined icon-20" ${idx === 3 ? 'data-pt-dest-icon' : ''}>${n.icon}</span>
                   </div>
                 </foreignObject>
-                <circle cx="${n.x + 17}" cy="36" r="9" fill="${idx === 0 ? '#10b981' : '#e2e8f0'}" data-pt-badge-bg="${idx}" />
-                <text x="${n.x + 17}" y="39.5" text-anchor="middle" font-size="9.5" font-weight="700" font-family="'JetBrains Mono', monospace" fill="${idx === 0 ? '#ffffff' : '#64748b'}" data-pt-badge-txt="${idx}">${idx + 1}</text>
-                <text x="${n.x}" y="98" text-anchor="middle" font-size="11.5" font-weight="700" font-family="'Google Sans', 'Plus Jakarta Sans', sans-serif" fill="currentColor" class="text-neutral-800 dark:text-neutral-100" ${idx === 3 ? 'data-pt-dest-label' : ''}>${n.label}</text>
-                <text x="${n.x}" y="114" text-anchor="middle" font-size="9.5" font-family="'JetBrains Mono', monospace" fill="currentColor" class="text-neutral-400 dark:text-neutral-500" data-pt-sub="${idx}">${idx === 2 ? 'Fibre / TCP/IP' : idx === 3 ? 'Chat Relay' : ''}</text>
+                <circle cx="${n.x + 17}" cy="36" r="9" fill="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)'}" data-pt-badge-bg="${idx}" />
+                <text x="${n.x + 17}" y="39.5" text-anchor="middle" font-size="9.5" font-weight="700" font-family="'JetBrains Mono', monospace" fill="${idx === 0 ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)'}" data-pt-badge-txt="${idx}">${idx + 1}</text>
+                <text x="${n.x}" y="98" text-anchor="middle" font-size="11.5" font-weight="700" font-family="'Google Sans', 'Plus Jakarta Sans', sans-serif" fill="var(--m3-text)" ${idx === 3 ? 'data-pt-dest-label' : ''}>${n.label}</text>
+                <text x="${n.x}" y="114" text-anchor="middle" font-size="9.5" font-family="'JetBrains Mono', monospace" fill="var(--m3-text-muted)" data-pt-sub="${idx}">${idx === 2 ? 'Fibre / TCP/IP' : idx === 3 ? 'Chat Relay' : ''}</text>
               </g>
             `).join('')}
 
             <!-- Travelling Glowing Packet Dot -->
-            <circle cx="70" cy="54" r="11" fill="#10b981" opacity="0.32" class="m3-packet-dot" data-pt-packet-glow />
-            <circle cx="70" cy="54" r="5.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
+            <circle cx="70" cy="54" r="10" fill="var(--m3-primary)" opacity="0.28" class="m3-packet-dot" data-pt-packet-glow />
+            <circle cx="70" cy="54" r="5.5" fill="var(--m3-primary)" stroke="var(--m3-surface-container-lowest)" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
           </svg>
 
           <!-- Interactive Hop Inspection Row -->
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-neutral-100 dark:border-neutral-800/80">
-            <span class="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
-              <span class="material-symbols-outlined text-sm text-emerald-600">touch_app</span>
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs pt-2 border-t m3-border-subtle">
+            <span class="flex items-center gap-1.5 m3-text-muted">
+              <span class="material-symbols-outlined text-sm m3-text-primary">touch_app</span>
               <span>Click any node to inspect hop details</span>
             </span>
-            <span class="font-bold text-emerald-700 dark:text-emerald-400 text-xs" data-pt-hop-title>Node 4 of 4: Destination</span>
+            <span class="font-bold m3-text-primary text-xs" data-pt-hop-title>Node 4 of 4: Destination</span>
           </div>
 
           <!-- Hop Description Banner -->
-          <div class="rounded-xl p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-900 dark:text-emerald-200 text-center font-medium leading-relaxed" data-pt-status>
+          <div class="rounded-xl p-3 m3-tonal-badge text-xs text-center font-medium leading-relaxed" data-pt-status>
             Node 4 (Chat Relay Server): Receives direct app packet on port 5222 without browser parsing.
           </div>
         </div>
 
         <!-- Structured Live Packet Header Card -->
-        <div class="bg-white dark:bg-neutral-900 rounded-2xl p-4 border border-neutral-200 dark:border-neutral-800 shadow-xs">
-          <div class="text-[11px] font-bold uppercase tracking-wider text-neutral-500 dark:text-neutral-400 mb-3 flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-base">receipt_long</span>
+        <div class="m3-surface-container-low rounded-2xl p-4 border m3-border-subtle">
+          <div class="text-[11px] font-bold uppercase tracking-wider m3-text-muted mb-3 flex items-center gap-1.5">
+            <span class="material-symbols-outlined icon-18">receipt_long</span>
             <span>Live Packet Header</span>
           </div>
           <div class="grid grid-cols-2 gap-3 text-xs">
-            <div class="p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-800">
-              <div class="text-[10px] uppercase font-bold text-neutral-500 dark:text-neutral-400">Protocol</div>
-              <div class="font-mono font-bold text-emerald-600 dark:text-emerald-400 mt-1" data-pt-h-proto>TCP/IP (XMPP)</div>
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+              <div class="text-[10px] uppercase font-bold m3-text-muted">Protocol</div>
+              <div class="font-mono font-bold m3-text-primary mt-1" data-pt-h-proto>TCP/IP (XMPP)</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-800">
-              <div class="text-[10px] uppercase font-bold text-neutral-500 dark:text-neutral-400">Port</div>
-              <div class="font-mono font-bold text-neutral-800 dark:text-neutral-200 mt-1" data-pt-h-port>5222</div>
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+              <div class="text-[10px] uppercase font-bold m3-text-muted">Port</div>
+              <div class="font-mono font-bold mt-1" data-pt-h-port>5222</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-800">
-              <div class="text-[10px] uppercase font-bold text-neutral-500 dark:text-neutral-400">Payload Type</div>
-              <div class="font-mono font-semibold text-neutral-800 dark:text-neutral-200 mt-1" data-pt-h-payload>Raw Binary / JSON</div>
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+              <div class="text-[10px] uppercase font-bold m3-text-muted">Payload Type</div>
+              <div class="font-mono font-semibold mt-1" data-pt-h-payload>Raw Binary / JSON</div>
             </div>
-            <div class="p-2.5 sm:p-3 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200/70 dark:border-neutral-800">
-              <div class="text-[10px] uppercase font-bold text-neutral-500 dark:text-neutral-400">Browser Rendering</div>
-              <div class="font-mono font-semibold text-neutral-800 dark:text-neutral-200 mt-1" data-pt-h-render>Not Needed</div>
+            <div class="p-2.5 sm:p-3 rounded-xl m3-surface-container-lowest border m3-border-subtle">
+              <div class="text-[10px] uppercase font-bold m3-text-muted">Browser Rendering</div>
+              <div class="font-mono font-semibold mt-1" data-pt-h-render>Not Needed</div>
             </div>
           </div>
         </div>
@@ -429,7 +429,7 @@ export function renderLessonWidgetHtml(widgetSpec) {
           </label>
         </div>
 
-        <div class="p-4 rounded-2xl bg-white border border-slate-200 text-center">
+        <div class="p-4 rounded-2xl bg-white text-[#171d19] border border-slate-200 text-center">
           <div class="text-[11px] font-mono text-slate-500 mb-1">&lt;p id="title" class="alert"&gt;</div>
           <div class="text-lg font-bold transition-all" data-spec-target>Notice: Admissions Open!</div>
         </div>
@@ -740,9 +740,9 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
         const ring = pt.querySelector(`[data-pt-ring="${idx}"]`);
         const badgeBg = pt.querySelector(`[data-pt-badge-bg="${idx}"]`);
         const badgeTxt = pt.querySelector(`[data-pt-badge-txt="${idx}"]`);
-        if (ring) ring.setAttribute('stroke', lit ? '#10b981' : '#cbd5e1');
-        if (badgeBg) badgeBg.setAttribute('fill', lit ? '#10b981' : '#e2e8f0');
-        if (badgeTxt) badgeTxt.setAttribute('fill', lit ? '#ffffff' : '#64748b');
+        if (ring) ring.setAttribute('stroke', lit ? 'var(--m3-primary)' : 'var(--m3-outline-variant)');
+        if (badgeBg) badgeBg.setAttribute('fill', lit ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)');
+        if (badgeTxt) badgeTxt.setAttribute('fill', lit ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)');
       });
       const x = nodeXs[Math.min(3, Math.max(0, activeIdx))];
       if (packet) {
@@ -776,12 +776,7 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
       pt.querySelectorAll('[data-pt-mode]').forEach((b) => {
         const active = b.dataset.ptMode === mode;
         b.classList.toggle('btn-primary', active);
-        b.classList.toggle('btn-ghost', !active);
-        b.classList.toggle('bg-white', !active);
-        b.classList.toggle('dark:bg-neutral-800', !active);
-        b.classList.toggle('border', !active);
-        b.classList.toggle('border-neutral-300', !active);
-        b.classList.toggle('dark:border-neutral-700', !active);
+        b.classList.toggle('m3-btn-tonal', !active);
       });
       if (mode === 'internet') {
         protoEl.textContent = 'TCP/IP · Port 5222';

@@ -790,8 +790,35 @@ dialog.modal::backdrop,
   line-height: 1.3;
 }
 
+.m3-avatar-primary {
+  background-color: var(--m3-primary);
+  color: var(--m3-on-primary);
+}
+
+.m3-dot-primary {
+  background-color: var(--m3-primary);
+}
+
+.m3-sidebar-mod {
+  background-color: var(--m3-surface-container-lowest);
+}
+
+[data-theme="m3-dark"] .m3-sidebar-mod {
+  background-color: var(--m3-surface-container);
+}
+
+.m3-sidebar-code {
+  background-color: var(--m3-primary);
+  color: var(--m3-on-primary);
+}
+
+.m3-sidebar-code.is-locked {
+  background-color: var(--m3-surface-container-highest);
+  color: var(--m3-text-muted);
+}
+
 .rail-collapsed-only {
-  display: none;
+  display: none !important;
 }
 
 @media (min-width: 1024px) {
@@ -1471,7 +1498,7 @@ body.is-resizing iframe {
   border-radius: 0.4rem;
   border: 1px solid var(--m3-outline-variant);
   background: var(--m3-surface-container-low);
-  color: var(--m3-on-surface-variant);
+  color: var(--m3-text-muted);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 10px;
   font-weight: 600;
