@@ -938,6 +938,11 @@ function renderSidebarAndProgress() {
   if (navBar) navBar.value = prog.percent;
   if (navLbl) navLbl.textContent = `${prog.done}/${prog.totalSteps} · ${prog.percent}%`;
 
+  const topVerifyLink = document.getElementById('nav-verify-link');
+  if (topVerifyLink) {
+    topVerifyLink.classList.toggle('hidden', isRegistered());
+  }
+
   const profileCard = document.getElementById('sidebar-profile-card');
   if (profileCard) {
     if (isRegistered()) {
@@ -952,8 +957,8 @@ function renderSidebarAndProgress() {
               <div class="font-bold text-sm truncate">${escapeHtml(appState.profile.fullName)}</div>
               <div class="text-xs font-mono m3-text-muted truncate">${escapeHtml(appState.profile.rollNo)}</div>
             </div>
-            <a href="#/" class="btn btn-xs btn-ghost btn-circle shrink-0 m3-text-muted" title="Course Overview">
-              <span class="material-symbols-outlined icon-18">unfold_more</span>
+            <a href="#/" class="btn btn-xs btn-ghost btn-circle shrink-0 m3-text-muted" title="Course Overview" aria-label="Course Overview">
+              <span class="material-symbols-outlined icon-18">home</span>
             </a>
           </div>
         </div>
@@ -1345,7 +1350,10 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
         ${(sec.analogy || sec.takeaway) ? `
           <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle">
             <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
-              <span>Extra Tips &amp; Examples</span>
+              <span class="flex items-center gap-2 min-w-0">
+                <span class="material-symbols-outlined icon-18 m3-text-primary shrink-0" aria-hidden="true">lightbulb</span>
+                <span>Extra Tips &amp; Examples</span>
+              </span>
               <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
             </summary>
             <div class="m3-accordion-body px-4 py-3.5 text-xs space-y-2 m3-text-muted">
@@ -1358,7 +1366,10 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
         ${sec.microCheck ? `
           <details class="m3-accordion m3-surface-container-low rounded-2xl border m3-border-subtle" id="lesson-micro-check">
             <summary class="m3-accordion-trigger px-4 py-3 text-xs font-semibold">
-              <span>Quick Check (Optional)</span>
+              <span class="flex items-center gap-2 min-w-0">
+                <span id="micro-check-icon" class="material-symbols-outlined icon-18 m3-text-primary shrink-0" aria-hidden="true">quiz</span>
+                <span>Quick Check (Optional)</span>
+              </span>
               <span class="material-symbols-outlined icon-18 m3-accordion-chevron" aria-hidden="true">expand_more</span>
             </summary>
             <div class="m3-accordion-body px-4 py-3.5">
@@ -1382,17 +1393,11 @@ function renderLessonPaneOneHtml(mod, sec, currentStep, totalLessons) {
         <div class="m3-mobile-split-actions lg:contents">
           <div class="m3-mobile-prev-wrap lg:flex lg:items-center lg:gap-2">
             ${currentStep > 1 ? `
-              <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-sm m3-btn-tonal lg:btn-ghost lg:border lg:m3-border-subtle rounded-full px-3.5 gap-1.5" title="Previous Lesson (Alt+Left)">
+              <a href="#/module/${mod.id}/lesson/${currentStep - 1}" id="lesson-prev-btn" class="btn btn-sm btn-circle m3-btn-tonal shrink-0" title="Previous" aria-label="Previous">
                 <span class="material-symbols-outlined icon-18">arrow_back</span>
-                <span>Previous</span>
               </a>
-            ` : `
-              <button type="button" id="lesson-prev-btn" disabled class="btn btn-sm m3-btn-tonal lg:btn-ghost lg:border lg:m3-border-subtle rounded-full px-3.5 gap-1.5 opacity-40 cursor-not-allowed" aria-disabled="true">
-                <span class="material-symbols-outlined icon-18">arrow_back</span>
-                <span>Previous</span>
-              </button>
-            `}
-            <a href="#/quiz/${mod.id}" class="hidden lg:inline-flex btn btn-sm btn-ghost rounded-full px-3 text-xs" title="Jump to Module ${mod.id} Quiz">
+            ` : ''}
+            <a href="#/quiz/${mod.id}" class="hidden lg:inline-flex btn btn-sm btn-ghost rounded-full px-3 text-xs m3-text-muted" title="Jump to Module ${mod.id} Quiz">
               Take Quiz
             </a>
           </div>
@@ -1822,7 +1827,7 @@ function renderModuleView(moduleId, lessonStep = 1) {
           <div id="resizer-1" class="ide-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Lesson and Simulator"></div>
 
           <div id="pane-simulator" class="ide-pane">
-            <div class="flex-1 overflow-y-auto p-5 sm:p-8 flex flex-col justify-center">
+            <div class="flex-1 overflow-y-auto p-5 sm:p-7 flex flex-col">
               <div class="w-full max-w-2xl mx-auto">
                 ${renderLessonWidgetHtml(sec.widget)}
               </div>
@@ -1831,16 +1836,10 @@ function renderModuleView(moduleId, lessonStep = 1) {
             <div class="lg:hidden m3-mobile-sticky-bar shrink-0">
               <div class="m3-mobile-split-actions">
                 ${currentStep > 1 ? `
-                  <a href="#/module/${mod.id}/lesson/${currentStep - 1}" class="btn m3-btn-tonal gap-1.5">
+                  <a href="#/module/${mod.id}/lesson/${currentStep - 1}" class="btn btn-circle m3-btn-tonal shrink-0" title="Previous" aria-label="Previous">
                     <span class="material-symbols-outlined icon-18">arrow_back</span>
-                    <span>Previous</span>
                   </a>
-                ` : `
-                  <button type="button" disabled class="btn m3-btn-tonal gap-1.5 opacity-45" aria-disabled="true">
-                    <span class="material-symbols-outlined icon-18">arrow_back</span>
-                    <span>Previous</span>
-                  </button>
-                `}
+                ` : ''}
                 <button type="button" class="btn btn-primary gap-1.5 js-mobile-lesson-next">
                   <span>${isLastLesson ? 'Take Quiz' : 'Next'}</span>
                   <span class="material-symbols-outlined icon-18">arrow_forward</span>
@@ -1912,6 +1911,11 @@ function renderModuleView(moduleId, lessonStep = 1) {
         fbEl.classList.remove('hidden', 'm3-text-primary', 'text-error');
         fbEl.classList.add(ok ? 'm3-text-primary' : 'text-error');
         fbEl.textContent = `${ok ? 'Correct.' : 'Not quite.'} ${sec.microCheck.explanation}`;
+        const mcIcon = document.getElementById('micro-check-icon');
+        if (mcIcon) {
+          mcIcon.textContent = ok ? 'check_circle' : 'quiz';
+          mcIcon.classList.toggle('filled', ok);
+        }
       });
     });
   }

@@ -112,24 +112,31 @@ export function renderLessonWidgetHtml(widgetSpec) {
           <span class="badge m3-tonal-badge font-mono text-[11px]" data-pt-proto>TCP/IP · Port 5222</span>
         </div>
 
-        <!-- Mode Buttons + Animate Action -->
-        <div class="flex flex-wrap items-center gap-2">
-          <button type="button" class="btn btn-xs sm:btn-sm btn-primary rounded-full gap-1.5 font-medium" data-pt-mode="internet">
+        <!-- Mode Switcher Tabs -->
+        <div role="tablist" aria-label="Packet inspection mode" class="tabs tabs-boxed rounded-full p-1 m3-surface-container border m3-border-subtle grid grid-cols-2">
+          <button type="button" role="tab" aria-selected="true" class="tab tab-sm h-9 rounded-full gap-1.5 font-semibold tab-active" data-pt-mode="internet">
             <span class="material-symbols-outlined icon-18">chat</span>
-            <span>Send Message (Internet Only)</span>
+            <span class="truncate">Internet Only (Chat)</span>
           </button>
-          <button type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1.5 font-medium" data-pt-mode="www">
+          <button type="button" role="tab" aria-selected="false" class="tab tab-sm h-9 rounded-full gap-1.5 font-semibold" data-pt-mode="www">
             <span class="material-symbols-outlined icon-18">language</span>
-            <span>Open Webpage (World Wide Web)</span>
-          </button>
-          <button type="button" class="btn btn-xs sm:btn-sm btn-outline rounded-full gap-1.5 ml-auto font-medium" data-pt-send>
-            <span class="material-symbols-outlined icon-18">play_circle</span>
-            <span>Animate Packet</span>
+            <span class="truncate">World Wide Web (HTTP)</span>
           </button>
         </div>
 
         <!-- SVG Network Topology Card -->
         <div class="m3-surface-container-low rounded-2xl p-4 sm:p-5 border m3-border-subtle flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-2 text-xs">
+            <span class="flex items-center gap-1.5 m3-text-muted">
+              <span class="material-symbols-outlined text-sm m3-text-primary">touch_app</span>
+              <span>Click any node to inspect</span>
+            </span>
+            <button type="button" class="btn btn-xs btn-ghost border m3-border-subtle rounded-full gap-1 font-medium shrink-0" data-pt-send>
+              <span class="material-symbols-outlined text-sm m3-text-primary">replay</span>
+              <span>Animate</span>
+            </button>
+          </div>
+
           <svg viewBox="0 0 640 138" class="w-full h-auto block select-none" role="img" aria-label="Network Topology Diagram">
             <defs>
               <filter id="pt-glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -139,15 +146,22 @@ export function renderLessonWidgetHtml(widgetSpec) {
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
+              <clipPath id="pt-progress-clip">
+                <rect x="70" y="44" width="500" height="20" class="m3-packet-trail" style="transform-box:fill-box;transform-origin:left center;transform:scaleX(0);" data-pt-trail />
+              </clipPath>
             </defs>
 
-            <!-- Base connection track + animated dashed flow -->
-            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-outline-variant)" stroke-width="2.5" stroke-linecap="round" />
-            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-primary)" stroke-width="2.5" stroke-linecap="round" class="m3-svg-flow" opacity="0.78" />
+            <!-- Base muted track + active green dashed flow clipped to packet progress -->
+            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-outline-variant)" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="6 6" />
+            <line x1="70" y1="54" x2="570" y2="54" stroke="var(--m3-primary)" stroke-width="2.5" stroke-linecap="round" class="m3-svg-flow" opacity="0.85" clip-path="url(#pt-progress-clip)" />
+
+            <!-- Travelling Glowing Packet Dot (rendered behind nodes so icons stay unobstructed) -->
+            <circle cx="70" cy="54" r="10" fill="var(--m3-primary)" opacity="0.28" class="m3-packet-dot" data-pt-packet-glow />
+            <circle cx="70" cy="54" r="5.5" fill="var(--m3-primary)" stroke="var(--m3-surface-container-lowest)" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
 
             <!-- Nodes -->
             ${nodes.map((n, idx) => `
-              <g data-pt-node="${idx}" class="cursor-pointer">
+              <g data-pt-node="${idx}" class="m3-pt-node cursor-pointer">
                 <circle cx="${n.x}" cy="54" r="24" fill="var(--m3-surface-container-lowest)" stroke="${idx === 0 ? 'var(--m3-primary)' : 'var(--m3-outline-variant)'}" stroke-width="2.5" data-pt-ring="${idx}" />
                 <foreignObject x="${n.x - 12}" y="42" width="24" height="24">
                   <div xmlns="http://www.w3.org/1999/xhtml" class="w-6 h-6 flex items-center justify-center" style="color:var(--m3-text);">
@@ -160,24 +174,12 @@ export function renderLessonWidgetHtml(widgetSpec) {
                 <text x="${n.x}" y="114" text-anchor="middle" font-size="9.5" font-family="'JetBrains Mono', monospace" fill="var(--m3-text-muted)" data-pt-sub="${idx}">${idx === 2 ? 'Fibre / TCP/IP' : idx === 3 ? 'Chat Relay' : ''}</text>
               </g>
             `).join('')}
-
-            <!-- Travelling Glowing Packet Dot -->
-            <circle cx="70" cy="54" r="10" fill="var(--m3-primary)" opacity="0.28" class="m3-packet-dot" data-pt-packet-glow />
-            <circle cx="70" cy="54" r="5.5" fill="var(--m3-primary)" stroke="var(--m3-surface-container-lowest)" stroke-width="1.5" filter="url(#pt-glow)" class="m3-packet-dot" data-pt-packet />
           </svg>
 
-          <!-- Interactive Hop Inspection Row -->
-          <div class="flex flex-wrap items-center justify-between gap-2 text-xs pt-2 border-t m3-border-subtle">
-            <span class="flex items-center gap-1.5 m3-text-muted">
-              <span class="material-symbols-outlined text-sm m3-text-primary">touch_app</span>
-              <span>Click any node to inspect hop details</span>
-            </span>
-            <span class="font-bold m3-text-primary text-xs" data-pt-hop-title>Node 4 of 4: Destination</span>
-          </div>
-
-          <!-- Hop Description Banner -->
-          <div class="rounded-xl p-3 m3-tonal-badge text-xs text-center font-medium leading-relaxed" data-pt-status>
-            Node 4 (Chat Relay Server): Receives direct app packet on port 5222 without browser parsing.
+          <!-- Unified Hop Status Bar -->
+          <div class="rounded-xl px-3.5 py-2.5 m3-tonal-badge text-xs flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-2 leading-relaxed">
+            <span class="badge badge-xs m3-primary-container font-mono font-bold px-2 py-2 shrink-0" data-pt-hop-badge>Hop 4/4</span>
+            <span class="font-medium" data-pt-status>Chat Relay Server — Receives direct app packet on port 5222 without browser parsing.</span>
           </div>
         </div>
 
@@ -695,46 +697,32 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
     const destLabel = pt.querySelector('[data-pt-dest-label]');
     const sub2 = pt.querySelector('[data-pt-sub="2"]');
     const sub3 = pt.querySelector('[data-pt-sub="3"]');
-    const hopTitle = pt.querySelector('[data-pt-hop-title]');
+    const hopBadge = pt.querySelector('[data-pt-hop-badge]');
     const status = pt.querySelector('[data-pt-status]');
     const packet = pt.querySelector('[data-pt-packet]');
     const packetGlow = pt.querySelector('[data-pt-packet-glow]');
+    const packetTrail = pt.querySelector('[data-pt-trail]');
     const hProto = pt.querySelector('[data-pt-h-proto]');
     const hPort = pt.querySelector('[data-pt-h-port]');
     const hPayload = pt.querySelector('[data-pt-h-payload]');
     const hRender = pt.querySelector('[data-pt-h-render]');
 
-    const hopTitles = {
-      internet: [
-        'Node 1 of 4: Sender (Your Device)',
-        'Node 2 of 4: Local ISP Gateway',
-        'Node 3 of 4: Global Fibre Backbone',
-        'Node 4 of 4: Destination (Chat Relay)'
-      ],
-      www: [
-        'Node 1 of 4: Client Web Browser',
-        'Node 2 of 4: DNS Resolver & ISP',
-        'Node 3 of 4: High-Speed Internet Backbone',
-        'Node 4 of 4: Web Server (HTML Host)'
-      ]
-    };
-
     const hopDescriptions = {
       internet: [
-        'Node 1 (Your Device): Creates message payload and initiates connection on TCP port 5222.',
-        'Node 2 (ISP / Router): Routes raw TCP/IP packet through local gateway towards backbone.',
-        'Node 3 (Internet Backbone): Undersea fibre cables and transit routers move binary TCP packet globally.',
-        'Node 4 (Chat Relay Server): Receives direct app packet on port 5222 without browser parsing.'
+        'Your Device — Creates message payload and initiates connection on TCP port 5222.',
+        'ISP / Router — Routes raw TCP/IP packet through local gateway towards backbone.',
+        'Internet Backbone — Undersea fibre cables and transit routers move binary TCP packet globally.',
+        'Chat Relay Server — Receives direct app packet on port 5222 without browser parsing.'
       ],
       www: [
-        'Node 1 (Browser): User types URL; browser initiates DNS lookup & TLS 1.3 handshake.',
-        'Node 2 (ISP / DNS): Resolves domain name into server IP address and routes HTTPS request.',
-        'Node 3 (Internet Backbone): High-speed fibre network routes encrypted HTTPS packet to hosting datacenter.',
-        'Node 4 (Web Server): Returns HTML, CSS & JS over port 443; browser engine parses the DOM tree.'
+        'Web Browser — User types URL; browser initiates DNS lookup & TLS 1.3 handshake.',
+        'ISP / DNS — Resolves domain name into server IP address and routes HTTPS request.',
+        'Internet Backbone — High-speed fibre network routes encrypted HTTPS packet to hosting datacenter.',
+        'Web Server — Returns HTML, CSS & JS over port 443; browser engine parses the DOM tree.'
       ]
     };
 
-    const highlightNode = (activeIdx) => {
+    const highlightNode = (activeIdx, { instant = false } = {}) => {
       nodeXs.forEach((_, idx) => {
         const lit = idx <= activeIdx;
         const ring = pt.querySelector(`[data-pt-ring="${idx}"]`);
@@ -744,39 +732,45 @@ export function hydrateLessonWidget(rootEl, widgetSpec) {
         if (badgeBg) badgeBg.setAttribute('fill', lit ? 'var(--m3-primary)' : 'var(--m3-surface-container-highest)');
         if (badgeTxt) badgeTxt.setAttribute('fill', lit ? 'var(--m3-on-primary)' : 'var(--m3-text-muted)');
       });
-      const x = nodeXs[Math.min(3, Math.max(0, activeIdx))];
-      if (packet) {
-        packet.setAttribute('cx', String(x));
-        packet.style.cx = `${x}px`;
+      const clampedIdx = Math.min(3, Math.max(0, activeIdx));
+      const x = nodeXs[clampedIdx];
+      const offset = x - nodeXs[0];
+      const ratio = offset / (nodeXs[3] - nodeXs[0]);
+      const animEls = [packet, packetGlow, packetTrail].filter(Boolean);
+      if (instant) {
+        animEls.forEach((el) => el.classList.add('m3-packet-no-transition'));
       }
-      if (packetGlow) {
-        packetGlow.setAttribute('cx', String(x));
-        packetGlow.style.cx = `${x}px`;
+      if (packet) packet.style.transform = `translateX(${offset}px)`;
+      if (packetGlow) packetGlow.style.transform = `translateX(${offset}px)`;
+      if (packetTrail) packetTrail.style.transform = `scaleX(${ratio})`;
+      if (instant) {
+        pt.getBoundingClientRect();
+        animEls.forEach((el) => el.classList.remove('m3-packet-no-transition'));
       }
-      if (hopTitle) {
-        hopTitle.textContent = hopTitles[mode]?.[activeIdx] || 'Node 4 of 4: Destination';
+      if (hopBadge) {
+        hopBadge.textContent = `Hop ${clampedIdx + 1}/4`;
       }
       if (status) {
-        status.textContent = hopDescriptions[mode]?.[activeIdx] || '';
+        status.textContent = hopDescriptions[mode]?.[clampedIdx] || '';
       }
     };
 
     const animatePacket = () => {
       clearInterval(stepTimer);
       let hop = 0;
-      highlightNode(0);
+      highlightNode(0, { instant: true });
       stepTimer = setInterval(() => {
         hop += 1;
         highlightNode(hop);
         if (hop >= 3) clearInterval(stepTimer);
-      }, 420);
+      }, 850);
     };
 
     const renderMode = () => {
       pt.querySelectorAll('[data-pt-mode]').forEach((b) => {
         const active = b.dataset.ptMode === mode;
-        b.classList.toggle('btn-primary', active);
-        b.classList.toggle('m3-btn-tonal', !active);
+        b.classList.toggle('tab-active', active);
+        b.setAttribute('aria-selected', String(active));
       });
       if (mode === 'internet') {
         protoEl.textContent = 'TCP/IP · Port 5222';
