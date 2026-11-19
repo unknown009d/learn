@@ -1,17 +1,18 @@
 /**
  * Native IndexedDB Storage Wrapper for Vanilla Web Foundations
- * Object stores: student_profile, quizzes, practicals, lesson_progress
+ * Object stores: student_profile, quizzes, practicals, lesson_progress, certificates
  */
 
 const DB_NAME = 'druba_web_learning_db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 const memoryFallback = {
   student_profile: new Map(),
   quizzes: new Map(),
   practicals: new Map(),
-  lesson_progress: new Map()
+  lesson_progress: new Map(),
+  certificates: new Map()
 };
 
 function openDatabase() {
@@ -38,6 +39,9 @@ function openDatabase() {
       }
       if (!db.objectStoreNames.contains('lesson_progress')) {
         db.createObjectStore('lesson_progress', { keyPath: 'lessonKey' });
+      }
+      if (!db.objectStoreNames.contains('certificates')) {
+        db.createObjectStore('certificates', { keyPath: 'id' });
       }
     };
 
@@ -275,14 +279,38 @@ export async function importFullState(stateObj) {
   return exportFullState();
 }
 
+export async function getCachedCertificate() {
+  const rec = await withStore('certificates', 'readonly', (s) => s.get('current'));
+  if (rec !== null) return rec || null;
+  return memoryFallback.certificates.get('current') || null;
+}
+
+export async function saveCachedCertificate(certData) {
+  const record = {
+    ...certData,
+    id: 'current',
+    cachedAt: new Date().toISOString()
+  };
+  memoryFallback.certificates.set('current', record);
+  await withStore('certificates', 'readwrite', (s) => s.put(record));
+  return record;
+}
+
+export async function clearCachedCertificate() {
+  memoryFallback.certificates.clear();
+  await withStore('certificates', 'readwrite', (s) => s.clear());
+}
+
 export async function clearAllData() {
   memoryFallback.student_profile.clear();
   memoryFallback.quizzes.clear();
   memoryFallback.practicals.clear();
   memoryFallback.lesson_progress.clear();
+  memoryFallback.certificates.clear();
 
   await withStore('student_profile', 'readwrite', (s) => s.clear());
   await withStore('quizzes', 'readwrite', (s) => s.clear());
   await withStore('practicals', 'readwrite', (s) => s.clear());
   await withStore('lesson_progress', 'readwrite', (s) => s.clear());
+  await withStore('certificates', 'readwrite', (s) => s.clear());
 }

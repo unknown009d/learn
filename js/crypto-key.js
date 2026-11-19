@@ -16,6 +16,7 @@ const SIGNING_PUBLIC_JWK = {
 
 const KEY_PREFIX_GZIP = 'druba-web-v1.';
 const KEY_PREFIX_RAW = 'druba-web-v1r.';
+export const CERT_CACHE_VERSION = 1;
 export const VWFD_BACKUP_SECRET = 'DRUBA_WEB_FOUNDATIONS_VWFD_KEY_2026';
 export const VWFD_PREFIX_GZIP = 'vwfd-v1.';
 export const VWFD_PREFIX_RAW = 'vwfd-v1r.';
@@ -193,8 +194,105 @@ async function verifyEcdsaSignature(text, sigB64Url) {
   );
 }
 
+export async function computeCertificateStateHash(fullState) {
+  const payload = buildCanonicalPayload(fullState);
+  const fingerprint = {
+    v: payload.v,
+    courseCode: payload.courseCode,
+    student: payload.student,
+    quizzes: payload.quizzes.map((q) => ({
+      moduleId: q.moduleId,
+      bestScorePercent: q.bestScorePercent,
+      passed: q.passed
+    })),
+    practicals: payload.practicals.map((p) => ({
+      labId: p.labId,
+      htmlCode: p.htmlCode,
+      cssCode: p.cssCode,
+      jsCode: p.jsCode,
+      exactOutputSnapshot: p.exactOutputSnapshot,
+      passedAssertions: p.passedAssertions,
+      totalAssertions: p.totalAssertions,
+      completed: p.completed
+    }))
+  };
+  return sha256Hex(JSON.stringify(fingerprint));
+}
+
+export async function validateCachedCertificate(cachedRecord, fullState) {
+  if (
+    !cachedRecord ||
+    typeof cachedRecord !== 'object' ||
+    cachedRecord.cacheVersion !== CERT_CACHE_VERSION ||
+    cachedRecord.publicKeyX !== SIGNING_PUBLIC_JWK.x ||
+    typeof cachedRecord.key !== 'string' ||
+    typeof cachedRecord.signature !== 'string' ||
+    typeof cachedRecord.qrToken !== 'string' ||
+    typeof cachedRecord.verifyId !== 'string' ||
+    !cachedRecord.payload ||
+    typeof cachedRecord.payload !== 'object'
+  ) {
+    return { valid: false, isStale: false, reason: 'missing_or_outdated_schema' };
+  }
+
+  const currentPayload = buildCanonicalPayload(fullState);
+  const cachedStudent = cachedRecord.payload.student || {};
+  if (
+    cachedStudent.fullName !== currentPayload.student.fullName ||
+    cachedStudent.rollNo !== currentPayload.student.rollNo
+  ) {
+    return { valid: false, isStale: false, reason: 'student_mismatch' };
+  }
+
+  // Offline cryptographic integrity check when Web Crypto is available (HTTPS / localhost)
+  if (window.crypto && window.crypto.subtle) {
+    try {
+      const keyCheck = await verifyCompletionKey(cachedRecord.key);
+      if (
+        !keyCheck.valid ||
+        keyCheck.signature !== cachedRecord.signature ||
+        JSON.stringify(keyCheck.payload) !== JSON.stringify(cachedRecord.payload)
+      ) {
+        return { valid: false, isStale: false, reason: 'invalid_key_signature' };
+      }
+
+      const qrBytes = base64UrlToBytes(cachedRecord.qrToken);
+      const qrParsed = JSON.parse(new TextDecoder().decode(qrBytes));
+      if (!Array.isArray(qrParsed) || qrParsed.length !== 7 || typeof qrParsed[6] !== 'string') {
+        return { valid: false, isStale: false, reason: 'malformed_qr_token' };
+      }
+
+      const tuple = [
+        String(qrParsed[0] || ''),
+        String(qrParsed[1] || ''),
+        String(qrParsed[2] || ''),
+        Array.isArray(qrParsed[3]) ? qrParsed[3].map(Number) : [],
+        Number(qrParsed[4] || 0),
+        String(qrParsed[5] || '')
+      ];
+      const qrSig = String(qrParsed[6]);
+      const qrValid = await verifyEcdsaSignature(JSON.stringify(tuple), qrSig);
+      const expectedVerifyId = `DRUBA-WEB-${(await sha256Hex(qrSig)).slice(0, 10).toUpperCase()}`;
+
+      if (!qrValid || expectedVerifyId !== cachedRecord.verifyId) {
+        return { valid: false, isStale: false, reason: 'invalid_qr_signature' };
+      }
+    } catch {
+      return { valid: false, isStale: false, reason: 'verification_error' };
+    }
+  }
+
+  const currentStateHash = await computeCertificateStateHash(fullState);
+  return {
+    valid: true,
+    isStale: Boolean(cachedRecord.stateHash && cachedRecord.stateHash !== currentStateHash),
+    stateHash: currentStateHash
+  };
+}
+
 export async function issueSignedCertificate(fullState) {
   const payload = buildCanonicalPayload(fullState);
+  const stateHash = await computeCertificateStateHash(fullState);
   const res = await fetch(`${CERT_WORKER_URL}/issue`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -218,7 +316,10 @@ export async function issueSignedCertificate(fullState) {
     qrToken,
     verifyId,
     compressed,
-    byteLength: bytes.length
+    byteLength: bytes.length,
+    stateHash,
+    cacheVersion: CERT_CACHE_VERSION,
+    publicKeyX: SIGNING_PUBLIC_JWK.x
   };
 }
 

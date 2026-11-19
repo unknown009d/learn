@@ -15,6 +15,9 @@ import {
   markLessonCompleted,
   exportFullState,
   importFullState,
+  getCachedCertificate,
+  saveCachedCertificate,
+  clearCachedCertificate,
   clearAllData
 } from './db.js';
 import { MODULES, BONUS_MODULE, getModuleById } from './course-data.js';
@@ -24,6 +27,7 @@ import { LabIDEController, composeSrcDoc } from './ide.js';
 import { renderLessonWidgetHtml, hydrateLessonWidget, runJsInSandbox } from './lesson-widgets.js';
 import {
   issueSignedCertificate,
+  validateCachedCertificate,
   verifyCompletionKey,
   verifyCompactQrToken,
   encodeBackupToken,
@@ -43,7 +47,11 @@ const appState = {
   cleanupSplitResizers: null,
   cleanupRouteView: null,
   quizSession: null, // holds shuffled quiz state during active attempt
-  shortcutContext: null // { onRunAdvance?: Function, onSave?: Function }
+  shortcutContext: null, // { onRunAdvance?: Function, onSave?: Function }
+  certCache: null, // L1 in-memory validated signed certificate
+  certIssuePromise: null, // deduplicates background prefetch & route fetch
+  certIssueGeneration: 0, // invalidates in-flight fetches on reset / backup import
+  certRenderToken: 0 // guards async render if user navigates away
 };
 
 // ============================================================================
@@ -799,11 +807,13 @@ function bindBackupModal() {
     btn.disabled = true;
     try {
       await importFullState(state);
+      invalidateInMemoryCertCache();
       await refreshStateFromDB();
       renderSidebarAndProgress();
       modal.close();
       showToast(`Welcome back, ${state.profile.fullName}! Your progress is loaded.`, 'success');
       handleRoute();
+      prefetchCertificateInBackground();
     } catch (err) {
       showToast('Could not load saved progress: ' + err.message, 'error');
       updateBackupImportButton();
@@ -860,6 +870,7 @@ function bindBackupModal() {
     }
     disarmBackupReset();
     await clearAllData();
+    invalidateInMemoryCertCache();
     await refreshStateFromDB();
     renderSidebarAndProgress();
     modal.close();
@@ -2213,6 +2224,9 @@ function drawQuizSession(mod, quiz, prevRecord) {
     const updated = await saveQuizAttempt(mod.id, scorePercent, passed);
     await refreshStateFromDB();
     renderSidebarAndProgress();
+    if (passed) {
+      prefetchCertificateInBackground();
+    }
 
     session.submittedResult = { correctCount, total, scorePercent, passed };
     drawQuizSession(mod, quiz, updated);
@@ -2758,6 +2772,7 @@ async function renderLabView(labId, isBonus = false) {
         ide.dirtySinceVerify = false;
         await refreshStateFromDB();
         renderSidebarAndProgress();
+        prefetchCertificateInBackground();
 
         document.getElementById('ide-verified-badge')?.classList.remove('hidden');
         document.getElementById('ide-verified-badge')?.classList.add('inline-flex');
@@ -2999,20 +3014,70 @@ function buildOfflineQrFallbackSvg(seedText) {
   return `<svg viewBox="0 0 ${size} ${size}" width="104" height="104" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="QR Code Fallback"><rect width="${size}" height="${size}" fill="#ffffff"/>${cells.join('')}</svg>`;
 }
 
-async function renderCertificateView() {
-  if (!isCertificateUnlocked()) {
-    const nextHash = getNextRecommendedRoute();
-    renderLockedView(
-      'Certificate of Completion',
-      'Pass all 5 module quizzes (60% or higher) and complete all 8 coding labs to unlock your Certificate of Completion.',
-      nextHash
-    );
-    return;
+function invalidateInMemoryCertCache() {
+  appState.certCache = null;
+  appState.certIssuePromise = null;
+  appState.certIssueGeneration += 1;
+}
+
+async function getValidatedCachedCert(fullState) {
+  const candidate = appState.certCache || (await getCachedCertificate());
+  if (!candidate) return null;
+
+  const check = await validateCachedCertificate(candidate, fullState);
+  if (check.valid) {
+    appState.certCache = candidate;
+    return { generated: candidate, isStale: check.isStale };
   }
 
-  const view = document.getElementById('app-view');
-  
-  // Immediate M3 Skeleton Feedback while signing credential
+  // Discard corrupted, tampered, or mismatched cached certificate
+  appState.certCache = null;
+  await clearCachedCertificate().catch(() => {});
+  return null;
+}
+
+async function issueAndCacheCertificate(fullState, { forceRefresh = false } = {}) {
+  if (!forceRefresh && appState.certIssuePromise) {
+    return appState.certIssuePromise;
+  }
+
+  const generation = appState.certIssueGeneration;
+  const promise = (async () => {
+    const generated = await issueSignedCertificate(fullState);
+    if (generation === appState.certIssueGeneration) {
+      const saved = await saveCachedCertificate(generated);
+      appState.certCache = saved;
+      return saved;
+    }
+    return generated;
+  })();
+
+  appState.certIssuePromise = promise;
+  promise.finally(() => {
+    if (appState.certIssuePromise === promise) {
+      appState.certIssuePromise = null;
+    }
+  });
+  return promise;
+}
+
+function prefetchCertificateInBackground() {
+  if (!isCertificateUnlocked()) return;
+  if (appState.certCache || appState.certIssuePromise) return;
+
+  (async () => {
+    try {
+      const fullState = await exportFullState();
+      const cached = await getValidatedCachedCert(fullState);
+      if (cached) return; // Already validly cached in IndexedDB; L1 is now warm
+      await issueAndCacheCertificate(fullState);
+    } catch {
+      // Silent background prefetch; route view handles retries if offline
+    }
+  })();
+}
+
+function renderCertificateSkeleton(view) {
   view.innerHTML = `
     <section class="max-w-6xl mx-auto flex flex-col gap-5" aria-busy="true" aria-live="polite" aria-label="Preparing your certificate">
       <!-- Top Action Bar Skeleton -->
@@ -3071,32 +3136,70 @@ async function renderCertificateView() {
       </div>
     </section>
   `;
-  const fullState = await exportFullState();
-  let generated;
-  try {
-    generated = await issueSignedCertificate(fullState);
-  } catch (err) {
-    view.innerHTML = `
-      <section class="max-w-xl mx-auto mt-8">
-        <div class="m3-card rounded-3xl p-6 border m3-border-subtle text-center flex flex-col items-center gap-3">
-          <span class="material-symbols-outlined text-[40px] text-error">cloud_off</span>
-          <h1 class="text-xl font-bold">Could Not Issue Signed Certificate</h1>
-          <p class="text-sm m3-text-muted">${escapeHtml(err.message || 'Certificate signing server is unreachable. Check your internet connection and try again.')}</p>
-          <button id="cert-retry-btn" type="button" class="btn btn-primary rounded-full px-6 mt-2">Retry</button>
-        </div>
-      </section>
-    `;
-    document.getElementById('cert-retry-btn')?.addEventListener('click', () => renderCertificateView());
+}
+
+async function renderCertificateView({ forceRefresh = false } = {}) {
+  if (!isCertificateUnlocked()) {
+    const nextHash = getNextRecommendedRoute();
+    renderLockedView(
+      'Certificate of Completion',
+      'Pass all 5 module quizzes (60% or higher) and complete all 8 coding labs to unlock your Certificate of Completion.',
+      nextHash
+    );
     return;
   }
+
+  const view = document.getElementById('app-view');
+  const renderToken = ++appState.certRenderToken;
+  const fullState = await exportFullState();
+
+  let generated = null;
+  let isStale = false;
+
+  if (!forceRefresh) {
+    const cachedHit = await getValidatedCachedCert(fullState);
+    if (cachedHit) {
+      generated = cachedHit.generated;
+      isStale = cachedHit.isStale;
+    }
+  }
+
+  if (!generated) {
+    // Only show skeleton when an actual Cloudflare Worker signing request is needed
+    renderCertificateSkeleton(view);
+    try {
+      generated = await issueAndCacheCertificate(fullState, { forceRefresh });
+    } catch (err) {
+      if (renderToken !== appState.certRenderToken) return;
+      view.innerHTML = `
+        <section class="max-w-xl mx-auto mt-8">
+          <div class="m3-card rounded-3xl p-6 border m3-border-subtle text-center flex flex-col items-center gap-3">
+            <span class="material-symbols-outlined text-[40px] text-error">cloud_off</span>
+            <h1 class="text-xl font-bold">Could Not Issue Signed Certificate</h1>
+            <p class="text-sm m3-text-muted">${escapeHtml(err.message || 'Certificate signing server is unreachable. Check your internet connection and try again.')}</p>
+            <button id="cert-retry-btn" type="button" class="btn btn-primary rounded-full px-6 mt-2">Retry</button>
+          </div>
+        </section>
+      `;
+      document.getElementById('cert-retry-btn')?.addEventListener('click', () => renderCertificateView({ forceRefresh }));
+      return;
+    }
+  }
+
+  if (renderToken !== appState.certRenderToken || !window.location.hash.startsWith('#/certificate')) {
+    return;
+  }
+
   const qrInfo = { token: generated.qrToken, verifyId: generated.verifyId };
+  const signedPayload = generated.payload || {};
+  const signedStudent = signedPayload.student || fullState.profile || {};
 
   const quizScores = [1, 2, 3, 4, 5].map((m) => {
-    const q = (fullState.quizzes || []).find((x) => Number(x.moduleId) === m);
+    const q = (signedPayload.quizzes || fullState.quizzes || []).find((x) => Number(x.moduleId) === m);
     return Number(q?.bestScorePercent || 0);
   });
   const avgQuiz = Math.round(quizScores.reduce((a, b) => a + b, 0) / 5);
-  const completionDate = new Date(generated.payload.issuedAt).toLocaleDateString('en-IN', {
+  const completionDate = new Date(signedPayload.issuedAt).toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
     year: 'numeric'
@@ -3104,7 +3207,7 @@ async function renderCertificateView() {
 
   const baseUrl = window.location.origin + window.location.pathname;
   const qrPayload = `${baseUrl}#/verify?v=${encodeURIComponent(qrInfo.token)}`;
-  const safeRoll = (fullState.profile.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const safeRoll = (signedStudent.rollNo || 'Student').replace(/[^a-zA-Z0-9_-]/g, '_');
 
   view.innerHTML = `
     <section class="max-w-6xl mx-auto flex flex-col gap-5">
@@ -3143,6 +3246,19 @@ async function renderCertificateView() {
         </div>
       </div>
 
+      ${isStale ? `
+        <div id="cert-stale-banner" class="m3-surface-container-low rounded-2xl px-4 py-3 border m3-border-subtle flex flex-wrap items-center justify-between gap-3 no-print">
+          <div class="flex items-center gap-2.5 text-xs sm:text-sm min-w-0">
+            <span class="material-symbols-outlined icon-20 m3-text-primary shrink-0">update</span>
+            <span>Your quiz scores or lab code changed since this certificate was issued.</span>
+          </div>
+          <button id="cert-reissue-btn" type="button" class="btn btn-xs sm:btn-sm m3-btn-tonal rounded-full gap-1.5 px-4 shrink-0">
+            <span class="material-symbols-outlined icon-18">refresh</span>
+            <span>Re-issue Certificate</span>
+          </button>
+        </div>
+      ` : ''}
+
       <!-- Responsive A4 Landscape Stage (Scales 1122x794 Proportionally) -->
       <div id="certificate-stage">
         <article id="certificate-sheet" class="m3-a4-certificate" aria-label="A4 Landscape Certificate of Completion">
@@ -3167,11 +3283,11 @@ async function renderCertificateView() {
               <p class="text-[14px] text-[#4B5563] mt-3">This certifies that</p>
 
               <div class="text-[36px] font-bold tracking-tight text-[#146C43] leading-tight mt-1.5">
-                ${escapeHtml(fullState.profile.fullName)}
+                ${escapeHtml(signedStudent.fullName)}
               </div>
 
               <div class="font-mono text-[13px] font-medium text-[#4B5563] mt-1.5">
-                Student ID: ${escapeHtml(fullState.profile.rollNo)}
+                Student ID: ${escapeHtml(signedStudent.rollNo)}
               </div>
 
               <p class="text-[14px] text-[#4B5563] max-w-[680px] mx-auto mt-4 leading-relaxed">
@@ -3461,6 +3577,22 @@ async function renderCertificateView() {
   document.getElementById('cert-copy-key-btn')?.addEventListener('click', () => {
     closeExportMenu();
     copyToClipboard(generated.key, 'Certificate Verification Code copied.');
+  });
+  document.getElementById('cert-reissue-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = `<span class="loading loading-spinner loading-xs"></span><span>Updating...</span>`;
+    try {
+      const latestState = await exportFullState();
+      await issueAndCacheCertificate(latestState, { forceRefresh: true });
+      await renderCertificateView();
+      showToast('Certificate re-issued with your latest progress.', 'success');
+    } catch (err) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+      showToast(err.message || 'Could not update certificate right now. Showing your cached certificate.', 'error');
+    }
   });
 }
 
@@ -4546,6 +4678,7 @@ async function bootstrap() {
 
     window.addEventListener('hashchange', handleRoute);
     await handleRoute();
+    prefetchCertificateInBackground();
   } finally {
     await fontsReadyPromise;
     dismissBootLoader();
