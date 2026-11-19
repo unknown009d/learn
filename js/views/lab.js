@@ -74,7 +74,7 @@ export async function renderLabView(labId, isBonus = false) {
   const modSymbol = MOD_KEY;
 
   view.innerHTML = `
-    <section class="ide-workspace-root">
+    <section class="ide-workspace-root ide-workspace-tabbed">
       <!-- Compact IDE Action Bar -->
       <div class="ide-toolbar">
         <div class="w-full sm:w-auto sm:flex-1 flex items-center gap-2 min-w-0">
@@ -199,7 +199,7 @@ export async function renderLabView(labId, isBonus = false) {
 
         <!-- Pane 2: Code Editor -->
         <div id="pane-editor" class="ide-pane">
-          <div class="h-10 px-2 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between gap-1.5 shrink-0">
+          <div class="ide-editor-toolbar relative h-10 px-2 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between gap-1.5 shrink-0">
             <div class="min-w-0 flex-1 overflow-x-auto no-scrollbar">
               <div role="tablist" class="tabs tabs-boxed rounded-full p-0.5 m3-surface-container inline-flex flex-nowrap w-max">
                 ${lab.tabs.includes('html') ? `<button id="tab-btn-html" type="button" role="tab" class="tab tab-xs rounded-full tab-active font-mono text-[11px] px-2 whitespace-nowrap">index.html</button>` : ''}
@@ -217,7 +217,7 @@ export async function renderLabView(labId, isBonus = false) {
               <button id="editor-reset-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Reset Starter Code (Alt+Backspace)" aria-label="Reset Starter Code">
                 <span class="material-symbols-outlined icon-18">restart_alt</span>
               </button>
-              <button id="editor-run-icon-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Run Code Preview (Alt+R)" aria-label="Run Preview">
+              <button id="editor-run-icon-btn" type="button" data-mobile-show="preview" class="btn btn-xs btn-ghost btn-circle" title="Run Code Preview (Alt+R)" aria-label="Run Preview">
                 <span class="material-symbols-outlined icon-18">play_arrow</span>
               </button>
             </div>
@@ -266,7 +266,7 @@ export async function renderLabView(labId, isBonus = false) {
               <span>Run &amp; Check</span>
             </button>
           ` : `
-            <button id="mobile-ide-preview-btn" type="button" class="btn btn-primary gap-1.5">
+            <button id="mobile-ide-preview-btn" type="button" data-mobile-show="preview" class="btn btn-primary gap-1.5">
               <span class="material-symbols-outlined icon-18">play_arrow</span>
               <span>Run</span>
             </button>

@@ -114,12 +114,13 @@ function renderQuestion(q, qIdx, chosen, result) {
   const reveal = Boolean(result?.passed);
   const isCorrect = result && chosen === q.correctIndex;
   return `
-    <div class="m3-surface-container-lowest rounded-3xl p-5 sm:p-6 border m3-border-subtle" data-quiz-card>
+    <div class="m3-surface-container-lowest rounded-3xl p-5 sm:p-6 border m3-border-subtle" data-quiz-card data-question-id="${escapeHtml(String(q.id))}">
       <div class="flex items-start justify-between gap-3">
         <h3 class="font-bold text-base leading-snug">
           <span class="m3-text-primary font-mono mr-1.5">Q${qIdx + 1}.</span>
           ${escapeHtml(q.question)}
         </h3>
+        <span class="m3-quiz-unanswered-note">Answer this question</span>
         ${result ? `<span class="badge ${isCorrect ? 'badge-success' : 'badge-error'} shrink-0">${isCorrect ? 'Correct' : 'Missed'}</span>` : ''}
       </div>
 
@@ -213,6 +214,7 @@ function drawQuiz(mod, quiz) {
   view.querySelectorAll('input[type="radio"]').forEach((radio) => {
     radio.addEventListener('change', (e) => {
       session.answers.set(e.target.name.slice(2), Number(e.target.value));
+      e.target.closest('[data-quiz-card]')?.classList.remove('is-unanswered');
       e.target.closest('[data-quiz-card]')?.querySelectorAll('.m3-quiz-option').forEach((lbl) => {
         lbl.classList.toggle('is-selected', Boolean(lbl.querySelector('input')?.checked));
       });
@@ -246,10 +248,29 @@ function drawQuiz(mod, quiz) {
   };
 }
 
+/** Outline every unanswered question and bring the first one into view. */
+function flagUnansweredQuestions() {
+  let first = null;
+  document.querySelectorAll('[data-quiz-card]').forEach((card) => {
+    const missing = !session.answers.has(card.dataset.questionId);
+    card.classList.remove('is-unanswered');
+    if (!missing) return;
+    void card.offsetWidth; // restart the attention pulse on repeat submits
+    card.classList.add('is-unanswered');
+    if (!first) first = card;
+  });
+  if (!first) return;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  first.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+  first.querySelector('input[type="radio"]')?.focus({ preventScroll: true });
+}
+
 async function submitQuiz(mod, quiz) {
   const total = session.questions.length;
   if (session.answers.size < total) {
-    showToast(`Please answer all ${total} questions before submitting (${session.answers.size}/${total} answered).`, 'error');
+    flagUnansweredQuestions();
+    const missing = total - session.answers.size;
+    showToast(`${missing} question${missing === 1 ? '' : 's'} still unanswered — highlighted for you.`, 'error');
     return;
   }
 

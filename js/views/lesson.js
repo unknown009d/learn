@@ -164,7 +164,7 @@ export function renderModuleView(moduleId, lessonStep = 1) {
     const fileLabel = isJsCodeLesson ? 'app.js' : 'index.html';
 
     view.innerHTML = `
-      <section class="ide-workspace-root" data-micro-lesson="${escapeHtml(sec.id)}" data-selectable>
+      <section class="ide-workspace-root ide-workspace-tabbed" data-micro-lesson="${escapeHtml(sec.id)}" data-selectable>
         <!-- Mobile Segmented Tab Bar (< 1024px) -->
         <div class="p-2 border-b m3-border-subtle m3-surface-container-low lg:hidden">
           <div class="tabs tabs-boxed rounded-full p-1 m3-surface-container grid grid-cols-3" id="mobile-pane-tabs">
@@ -183,7 +183,7 @@ export function renderModuleView(moduleId, lessonStep = 1) {
 
           <!-- Pane 2: Full CodeMirror 5 Editor (~34%) -->
           <div id="pane-editor" class="ide-pane">
-            <div class="h-10 px-2.5 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between gap-1.5 shrink-0">
+            <div class="ide-editor-toolbar relative h-10 px-2.5 border-b m3-border-subtle m3-surface-container-low flex items-center justify-between gap-1.5 shrink-0">
               <div class="min-w-0 flex-1 overflow-x-auto no-scrollbar">
                 <div role="tablist" class="tabs tabs-boxed rounded-full p-0.5 m3-surface-container inline-flex flex-nowrap w-max">
                   <button id="tab-btn-${activeTabKey}" type="button" role="tab" class="tab tab-xs rounded-full tab-active font-mono text-[11px] px-2.5 whitespace-nowrap">${fileLabel}</button>
@@ -196,16 +196,28 @@ export function renderModuleView(moduleId, lessonStep = 1) {
                 <button id="editor-hint-btn" type="button" class="btn btn-xs btn-ghost btn-circle" title="Autocomplete (Ctrl+Space)" aria-label="Autocomplete">
                   <span class="material-symbols-outlined icon-18">code_blocks</span>
                 </button>
-                <button id="lesson-reset-btn" type="button" class="btn btn-xs btn-ghost rounded-full gap-1" title="Reset Starter Code">
+                <button id="lesson-reset-btn" type="button" class="btn btn-xs btn-ghost rounded-full gap-1" title="Reset Starter Code" aria-label="Reset Starter Code">
                   <span class="material-symbols-outlined icon-18">restart_alt</span>
-                  <span>Reset</span>
+                  <span class="hidden sm:inline">Reset</span>
                 </button>
-                <button id="lesson-run-btn" type="button" class="btn btn-xs btn-primary rounded-full px-3 gap-1" title="Run Code">
+                <button id="lesson-run-btn" type="button" class="btn btn-xs btn-primary rounded-full px-3 gap-1" title="Run Code" data-mobile-show="preview">
                   <span class="material-symbols-outlined text-[15px]">play_arrow</span>
                   <span>Run</span>
                 </button>
               </div>
             </div>
+
+            ${isHtmlCodeLesson && Array.isArray(sec.widget?.checks) && sec.widget.checks.length ? `
+              <div class="ide-goal-strip lg:hidden" aria-label="Goals for this task">
+                <span class="ide-goal-strip-label">Goals</span>
+                ${sec.widget.checks.map((chk, idx) => `
+                  <span class="ide-goal-chip m3-surface-container" data-me-check="${idx}">
+                    <span class="material-symbols-outlined" aria-hidden="true">radio_button_unchecked</span>
+                    <span>${escapeHtml(chk.label)}</span>
+                  </span>
+                `).join('')}
+              </div>
+            ` : ''}
 
             ${presets.length ? `
               <div class="px-2.5 py-1.5 border-b m3-border-subtle m3-surface-container-low flex flex-wrap gap-1.5 shrink-0">
@@ -270,14 +282,15 @@ export function renderModuleView(moduleId, lessonStep = 1) {
     const checks = Array.isArray(sec.widget?.checks) ? sec.widget.checks : [];
     const syncMiniChecks = (codeText) => {
       checks.forEach((chk, idx) => {
-        const badge = view.querySelector(`[data-me-check="${idx}"]`);
-        if (!badge) return;
         let ok = false;
         try { ok = Boolean(chk.test(codeText)); } catch { ok = false; }
-        const icon = badge.querySelector('.material-symbols-outlined');
-        if (icon) icon.textContent = ok ? 'check_circle' : 'radio_button_unchecked';
-        badge.classList.toggle('m3-primary-container', ok);
-        badge.classList.toggle('m3-surface-container', !ok);
+        // Each goal is shown twice: in the lesson pane and in the editor's goal strip (mobile).
+        view.querySelectorAll(`[data-me-check="${idx}"]`).forEach((badge) => {
+          const icon = badge.querySelector('.material-symbols-outlined');
+          if (icon) icon.textContent = ok ? 'check_circle' : 'radio_button_unchecked';
+          badge.classList.toggle('m3-primary-container', ok);
+          badge.classList.toggle('m3-surface-container', !ok);
+        });
       });
     };
 

@@ -12,6 +12,7 @@ import { initKeyboardShortcuts } from './ui/shortcuts.js';
 import { initContentGuard } from './ui/content-guard.js';
 import { initInspectionTrail } from './integrity/trail.js';
 import { handleRoute } from './router.js';
+import { initMobileEditingHelpers } from './ui/workspace.js';
 
 async function waitForFontsReady(timeoutMs = 2500) {
   if (!document.fonts) return;
@@ -62,6 +63,7 @@ async function bootstrap() {
     await loadAudioManifest();
     bindGlobalModals();
     initKeyboardShortcuts();
+    initMobileEditingHelpers();
 
     document.querySelectorAll('.js-theme-toggle').forEach((btn) => {
       btn.addEventListener('click', () => {

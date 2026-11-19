@@ -9,6 +9,11 @@ import { recordTrail, msSinceTrustedInput } from './integrity/trail.js';
 /** CodeMirror change origins that only come from a person using the editor. */
 const USER_EDIT_ORIGINS = new Set(['+input', '+delete', 'paste', 'cut', 'drag', 'undo', 'redo', 'complete', 'emmet', '*compose', '+move']);
 
+/** Phones and tablets: the primary pointer is a finger, not a mouse. */
+function isTouchDevice() {
+  return Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+}
+
 const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'param', 'source', 'track', 'wbr']);
 
 const CSS_ABBREVIATIONS = {
@@ -500,6 +505,9 @@ export class LabIDEController {
     this.bindSymbolBar();
     this.startTelemetryLoop();
     this.bindPostMessageListener();
+    // switchTab only grabs focus on mouse devices: on phones focusing on load
+    // scrolls the page to the editor and can pop the keyboard before the
+    // learner has read the lesson.
     this.switchTab(this.activeTab);
     this.runPreviewOnly();
   }
@@ -527,6 +535,7 @@ export class LabIDEController {
           theme: this.getCurrentThemeName(),
           lineNumbers: true,
           lineWrapping: true,
+          inputStyle: 'contenteditable',
           tabSize: 2,
           indentUnit: 2,
           autoCloseTags: spec.key === 'html',
@@ -609,8 +618,11 @@ export class LabIDEController {
           inputField.setAttribute('spellcheck', 'false');
         }
 
-        // Contextual autocomplete on <, tag attributes, CSS props, and JS dot/identifiers
+        // Contextual autocomplete on <, tag attributes, CSS props, and JS dot/identifiers.
+        // Off on touch screens: pop-ups over the on-screen keyboard fight with
+        // predictive text and hijack Enter. The toolbar's autocomplete button still works.
         cm.on('inputRead', (instance, changeObj) => {
+          if (isTouchDevice()) return;
           if (!changeObj || changeObj.origin !== '+input') return;
           const typed = (changeObj.text || []).join('');
           if (!typed) return;
@@ -862,6 +874,10 @@ export class LabIDEController {
 
   bindSymbolBar() {
     if (!this.containers.symbolBar) return;
+    // Keep focus (and the on-screen keyboard) in the editor while tapping symbols.
+    this.containers.symbolBar.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) e.preventDefault();
+    });
     this.containers.symbolBar.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-symbol], [data-action="emmet"]');
       if (!btn) return;
@@ -904,7 +920,7 @@ export class LabIDEController {
     });
   }
 
-  switchTab(tabKey) {
+  switchTab(tabKey, { focus = !isTouchDevice() } = {}) {
     this.activeTab = tabKey;
     const allTabs = ['html', 'css', 'js'];
     for (const k of allTabs) {
@@ -921,8 +937,8 @@ export class LabIDEController {
     requestAnimationFrame(() => {
       if (cm) {
         cm.refresh();
-        cm.focus();
-      } else if (ta) {
+        if (focus) cm.focus();
+      } else if (ta && focus) {
         ta.focus();
       }
     });

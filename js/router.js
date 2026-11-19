@@ -33,6 +33,12 @@ export async function handleRoute() {
   closeMobileDrawer();
   renderSidebarAndProgress();
 
+  // Every route starts at the top. On phones the window scrolls (not #app-view),
+  // so without this a new page opens at the previous page's scroll depth.
+  window.scrollTo(0, 0);
+  const appView = document.getElementById('app-view');
+  if (appView) appView.scrollTop = 0;
+
   const rawHash = window.location.hash || '#/';
   const route = rawHash.replace(/^#/, '') || '/';
   const [pathPart, queryPart] = route.split('?');

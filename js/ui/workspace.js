@@ -142,7 +142,7 @@ const EDITOR_SYMBOLS = ['<', '>', '/', '=', '"', '{', '}', ';', '(', ')', ':', '
 
 export function emmetCheatsheetHtml() {
   return `
-    <div class="dropdown dropdown-end">
+    <div class="dropdown dropdown-end ide-emmet-dropdown">
       <button type="button" tabindex="0" class="btn btn-xs btn-ghost btn-circle" title="Emmet Cheatsheet" aria-label="Emmet Cheatsheet">
         <span class="material-symbols-outlined icon-18" aria-hidden="true">bolt</span>
       </button>
@@ -164,11 +164,11 @@ export function symbolBarHtml() {
   const escape = (c) => c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   return `
     <div id="ide-symbol-bar" class="m3-symbol-bar lg:hidden" aria-label="Code Symbol Toolbar">
-      <button type="button" class="m3-symbol-pill is-emmet" data-action="emmet">
+      <button type="button" tabindex="-1" class="m3-symbol-pill is-emmet" data-action="emmet" aria-label="Expand Emmet abbreviation">
         <span class="material-symbols-outlined icon-18" aria-hidden="true">bolt</span>
         <span>Emmet</span>
       </button>
-      ${EDITOR_SYMBOLS.map((sym) => `<button type="button" class="m3-symbol-pill" data-symbol="${escape(sym)}">${escape(sym)}</button>`).join('')}
+      ${EDITOR_SYMBOLS.map((sym) => `<button type="button" tabindex="-1" class="m3-symbol-pill" data-symbol="${escape(sym)}">${escape(sym)}</button>`).join('')}
     </div>
   `;
 }
@@ -212,34 +212,89 @@ export function bindConsoleDrawer() {
   });
 }
 
-/** Below 1024px the three panes become tabs (Instructions / Editor / Preview). */
+const isMobileLayout = () => window.innerWidth < 1024;
+
+/**
+ * Below 1024px the three panes become tabs (Lesson / Editor / Preview).
+ * Hidden panes get `is-pane-hidden`, which only takes effect in the mobile media
+ * query, so resizing to desktop always shows all three panes again.
+ * Any element with `data-mobile-show="<pane>"` (e.g. Run) switches tabs on mobile.
+ */
 export function bindMobilePaneTabs(ide) {
   const tabs = document.getElementById('mobile-pane-tabs');
-  if (!tabs) return;
+  if (!tabs) return null;
   const panes = {
     instructions: document.getElementById('pane-instructions'),
     editor: document.getElementById('pane-editor'),
     preview: document.getElementById('pane-preview')
   };
   const show = (active) => {
-    if (window.innerWidth >= 1024) {
-      Object.values(panes).forEach((p) => p?.classList.remove('hidden'));
-      return;
-    }
-    Object.entries(panes).forEach(([k, p]) => p?.classList.toggle('hidden', k !== active));
+    Object.entries(panes).forEach(([k, p]) => p?.classList.toggle('is-pane-hidden', k !== active));
     tabs.querySelectorAll('[data-pane]').forEach((b) => {
       const selected = b.dataset.pane === active;
       b.classList.toggle('tab-active', selected);
       b.setAttribute('aria-selected', selected ? 'true' : 'false');
     });
+    if (active !== 'editor') {
+      // Leaving the editor: drop the keyboard so the next pane is fully visible.
+      const focused = document.activeElement;
+      if (focused && focused.closest?.('.CodeMirror, .ide-fallback-textarea')) focused.blur();
+    }
     if (active === 'editor') {
       ide.syncTheme();
-      ide.refreshEditors();
+      requestAnimationFrame(() => ide.refreshEditors());
     }
   };
   tabs.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-pane]');
     if (btn) show(btn.dataset.pane);
   });
+  const root = tabs.closest('.ide-workspace-root') || document;
+  root.querySelectorAll('[data-mobile-show]').forEach((el) => {
+    el.addEventListener('click', () => {
+      if (isMobileLayout()) show(el.dataset.mobileShow);
+    });
+  });
   show('instructions');
+  return show;
+}
+
+let mobileEditingBound = false;
+
+/**
+ * Mobile-only helpers, bound once at boot:
+ *  - `--app-vh` tracks the visible viewport height (shrinks when the on-screen
+ *    keyboard opens) so the code workspace always fits on screen.
+ *  - `body.is-mobile-editing` is set while the code editor has focus, so extra
+ *    chrome can step aside and leave room for the code.
+ */
+export function initMobileEditingHelpers() {
+  if (mobileEditingBound) return;
+  mobileEditingBound = true;
+
+  const root = document.documentElement;
+  const vv = window.visualViewport;
+  const syncViewportHeight = () => {
+    const h = vv ? vv.height : window.innerHeight;
+    root.style.setProperty('--app-vh', `${Math.round(h)}px`);
+  };
+  syncViewportHeight();
+  vv?.addEventListener('resize', syncViewportHeight);
+  window.addEventListener('resize', syncViewportHeight);
+
+  const EDITOR = '.CodeMirror, .ide-fallback-textarea';
+  let blurTimer = null;
+  document.addEventListener('focusin', (e) => {
+    if (!isMobileLayout() || !e.target.closest?.(EDITOR)) return;
+    clearTimeout(blurTimer);
+    document.body.classList.add('is-mobile-editing');
+  });
+  document.addEventListener('focusout', () => {
+    clearTimeout(blurTimer);
+    // Wait a beat: focus may just be moving within the editor.
+    blurTimer = setTimeout(() => {
+      if (!document.activeElement?.closest?.(EDITOR)) document.body.classList.remove('is-mobile-editing');
+    }, 120);
+  });
+  window.addEventListener('hashchange', () => document.body.classList.remove('is-mobile-editing'));
 }
